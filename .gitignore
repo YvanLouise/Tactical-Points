@@ -1,0 +1,5 @@
+node_modules/
+.cache/
+*.tar.gz
+*.log
+design/*.png

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f0e7">
+  <meta name="description" content="术点牌，一场从数字开始的策略对决。探索术点与王国两种玩法，认识十一位角色，查看真实开发画面。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="术点牌 · 纸间落子，点数生变。">
+  <meta property="og:description" content="叠牌、顺牌、暗置与猜心，把每一手打出新的可能。术点牌官方游戏介绍网站。">
+  <meta property="og:image" content="https://shudian-cards.rocky-rice-9763.chatgpt.site/assets/screens/kingdom.png">
+  <meta property="og:url" content="https://shudian-cards.rocky-rice-9763.chatgpt.site/">
+  <link rel="canonical" href="https://shudian-cards.rocky-rice-9763.chatgpt.site/">
+  <link rel="icon" href="./assets/favicon.png" type="image/png">
+  <link rel="preload" href="./assets/fonts/ZCOOLKuaiLe-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="./assets/hero.png" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+  <title>术点牌 · 官方网站</title>
+</head>
+<body>
+  <svg class="svg-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="arrow-left" viewBox="0 0 24 24"><path d="M20 12H4m6-6-6 6 6 6"/></symbol>
+    <symbol id="arrow-down" viewBox="0 0 24 24"><path d="M12 3v18m-7-7 7 7 7-7"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="spark" viewBox="0 0 32 40"><path d="m16 2 3.5 13L30 20l-10.5 4L16 38l-3.5-14L2 20l10.5-5Z"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header wrap">
+    <a class="brand" href="#intro" aria-label="术点牌首页"><svg class="brand-spark"><use href="#spark"/></svg><span>术点牌</span></a>
+    <button class="menu-toggle icon-button" id="menu-toggle" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav"><svg><use href="#menu"/></svg></button>
+    <nav id="site-nav" class="site-nav" aria-label="主导航">
+      <a class="nav-link is-active" href="#intro">游戏介绍</a>
+      <a class="nav-link" href="#modes">玩法模式</a>
+      <a class="nav-link" href="#characters">角色图鉴</a>
+      <a class="nav-link" href="#gallery">实机画面</a>
+      <a class="header-cta" href="#development">开发进度<svg class="icon"><use href="#arrow-right"/></svg></a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" id="intro" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">纸间落子，<br><span class="ink-underline">点数</span>生变。</h1>
+        <p class="hero-description">一场从数字开始的策略对决。<br>叠牌、顺牌、暗置与猜心，把每一手打出新的可能。</p>
+        <div class="hero-actions"><a class="button button-dark" href="#modes">了解玩法<svg class="icon"><use href="#arrow-right"/></svg></a><a class="text-link" href="#gallery">看看实机<svg class="icon"><use href="#arrow-right"/></svg></a></div>
+        <p class="hero-note">单人策略卡牌 <span>·</span> 术点 / 王国</p>
+      </div>
+      <div class="hero-art"><img src="./assets/hero.png" width="1358" height="1159" fetchpriority="high" alt="伊伊露丝拿着手牌，白呜趴在桌边，面前摆着 4、5、6 点卡牌"></div>
+    </section>
+    <div class="scroll-note wrap"><a href="#modes"><svg class="icon"><use href="#arrow-down"/></svg>往下翻，认识这副牌</a><span class="margin-scribble" aria-hidden="true">/ / /</span></div>
+
+    <section class="modes section wrap" id="modes" aria-labelledby="modes-title">
+      <div class="section-heading"><h2 id="modes-title">两种牌桌，两种胜法。</h2><span class="chapter">01 / HOW TO PLAY</span></div>
+      <div class="mode-tabs tab-row" role="tablist" aria-label="玩法模式"><button id="mode-tactical" class="mode-tab" type="button" role="tab" aria-selected="true" aria-controls="mode-panel" data-mode="tactical">术点模式</button><button id="mode-kingdom" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="mode-panel" tabindex="-1" data-mode="kingdom">王国模式</button></div>
+      <div id="mode-panel" class="mode-panel" role="tabpanel" aria-labelledby="mode-tactical">
+        <div class="mode-copy">
+          <h3 id="mode-title">先清空手牌，赢下这一局。</h3>
+          <p id="mode-description">暗置出示，同时翻牌。用叠牌与顺牌组合点数，再决定弃掉自己的牌，还是拿走对手的牌。</p>
+          <ol class="mode-steps" id="mode-steps"><li><span>01</span>组合你的手牌</li><li><span>02</span>藏好你的意图</li><li><span>03</span>把握清牌时机</li></ol>
+          <div class="card-diagram" aria-label="叠牌示意：4 加 4 等于 8"><div class="card-equation"><span class="point-card">4</span><span class="math-sign">+</span><span class="point-card">4</span><svg class="icon equation-arrow"><use href="#arrow-right"/></svg><span class="point-card result-card">8</span></div><p id="diagram-caption">两张同点，叠出新机会。</p></div>
+        </div>
+        <figure class="mode-figure"><button class="paper-frame mode-preview" id="mode-preview" type="button" aria-label="放大当前玩法实机截图"><img id="mode-image" src="./assets/screens/tactical.png" width="1280" height="720" loading="lazy" alt="术点模式的点数比对牌桌"></button><figcaption id="mode-caption">术点模式 / 对局界面 · 开发中画面</figcaption></figure>
+      </div>
+      <div class="versions"><h3>从基本牌开始，一步步加深策略。</h3><div class="version-tabs" role="tablist" aria-label="玩法版本"><button id="version-standard" class="version-tab" role="tab" aria-selected="true" aria-controls="version-panel" data-version="standard"><span>普通版</span><small>从基本牌开始</small></button><button id="version-advanced" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="advanced"><span>进阶版</span><small>加入特种卡</small></button><button id="version-expert" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="expert"><span>高阶版</span><small>开启角色能力</small></button><button id="version-full" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="full"><span>完整版</span><small>探索事件机制</small></button></div><p id="version-panel" class="version-description" role="tabpanel" aria-labelledby="version-standard">36 张基本牌，专注点数、叠牌、顺牌与伪装。</p><p class="development-footnote">术点完整版的事件效果仍在完善中；王国完整版暂未开放。</p></div>
+    </section>
+
+    <section class="characters section-band" id="characters" aria-labelledby="characters-title">
+      <div class="wrap">
+        <div class="section-heading"><div><h2 id="characters-title">同一副牌，不同的你。</h2><p class="section-description">十一位角色，十一种破局思路。找到适合你的那一种。</p></div><span class="chapter">02 / CHARACTERS</span></div>
+        <div class="character-stage"><div class="character-art"><img id="character-image" src="./assets/characters/warrior.png" width="1080" height="1440" loading="lazy" alt="武士角色原画"></div><div class="character-info"><h3 id="character-name">武士</h3><p id="character-english" class="character-english">THE WARRIOR</p><p id="character-quote" class="character-quote">「慢慢来，也能赢。」</p><div class="skill-tabs tab-row" role="tablist" aria-label="角色能力所属模式"><button id="skill-tactical" role="tab" aria-selected="true" aria-controls="skill-panel" data-skill="tactical">术点技能</button><button id="skill-kingdom" role="tab" aria-selected="false" aria-controls="skill-panel" tabindex="-1" data-skill="kingdom">王国能力</button></div><div class="skill-panel" id="skill-panel" role="tabpanel" aria-labelledby="skill-tactical"><h4 id="skill-name">武魂</h4><p id="skill-description">开局选择决斗或剑刃：主动比对总点数 +3，或获得不占手牌的 3 点剑刃。</p></div></div></div>
+        <div class="character-picker" id="character-picker" role="tablist" aria-label="选择角色"></div>
+        <p class="character-footnote">角色能力在高阶版开启；两种模式使用各自的技能规则。</p>
+      </div>
+    </section>
+
+    <section class="gallery section wrap" id="gallery" aria-labelledby="gallery-title">
+      <div class="section-heading"><h2 id="gallery-title">把牌桌，翻给你看。</h2><span class="chapter">03 / IN GAME</span></div>
+      <figure class="gallery-main"><button class="paper-frame gallery-open" id="gallery-open" aria-label="放大查看当前实机截图"><img id="gallery-image" src="./assets/screens/kingdom.png" width="1672" height="941" loading="lazy" alt="王国模式中的部署和领地争夺"></button><div class="gallery-caption"><figcaption id="gallery-caption">王国模式 / 部署与领地争夺 · 开发中画面</figcaption><div class="gallery-controls"><button class="icon-button" id="gallery-prev" aria-label="上一张实机截图"><svg><use href="#arrow-left"/></svg></button><span id="gallery-count" class="gallery-count" aria-live="polite">02 / 04</span><button class="icon-button" id="gallery-next" aria-label="下一张实机截图"><svg><use href="#arrow-right"/></svg></button></div></div></figure>
+      <div id="gallery-thumbnails" class="gallery-thumbnails" aria-label="选择实机截图"></div>
+    </section>
+
+    <section class="faq wrap" aria-labelledby="faq-title"><div class="faq-heading"><h2 id="faq-title">落座之前，<br>你也许想知道。</h2><img src="./assets/cat.svg" width="150" height="100" loading="lazy" alt=""></div><div class="faq-list"><details open><summary>现在可以下载游戏吗？<svg class="icon"><use href="#plus"/></svg></summary><p id="download-answer">游戏仍在完善中。正式下载与商店入口将在准备好后公布。</p></details><details><summary>可以和朋友联机吗？<svg class="icon"><use href="#plus"/></svg></summary><p>当前版本为单人与 AI 对战。你可以挑战白呜；术点普通版还提供白墨和白冥，另有最高难度的作者对手 YvanLouise。目前尚未提供联机对战。</p></details><details><summary>王国完整版开放了吗？<svg class="icon"><use href="#plus"/></svg></summary><p>王国普通、进阶和高阶版已实现。完整版的专属事件系统暂未开放；术点完整版的事件目前也仍为占位效果，正式内容将继续完善。</p></details></div></section>
+
+    <section class="development wrap" id="development" aria-labelledby="development-title"><div class="closing-rule"><svg><use href="#spark"/></svg></div><h2 id="development-title">下一手，等你来。</h2><p id="development-message">术点牌仍在持续打磨。玩法、美术与每一次出牌，都在慢慢变得更好。</p><span class="development-status"><span></span>开发进行中</span><div class="release-links" id="release-links" hidden><a id="download-link" class="button button-dark" hidden>下载游戏<svg class="icon"><use href="#arrow-right"/></svg></a><a id="community-link" class="text-link" hidden>玩家社群<svg class="icon"><use href="#arrow-right"/></svg></a></div></section>
+  </main>
+  <footer class="site-footer wrap"><div><a class="brand footer-brand" href="#intro"><svg class="brand-spark"><use href="#spark"/></svg><span>术点牌</span></a><span class="english-title">Tactical Points Duel</span></div><p>由 YvanLouise 创作<br><span>© 2026 术点牌</span></p></footer>
+  <dialog id="screenshot-dialog" class="screenshot-dialog" aria-labelledby="dialog-caption"><div class="lightbox-inner"><button id="dialog-close" class="icon-button lightbox-close" aria-label="关闭截图"><svg><use href="#close"/></svg></button><img id="dialog-image" alt=""><div class="dialog-footer"><p id="dialog-caption"></p><div class="gallery-controls"><button class="icon-button" id="dialog-prev" aria-label="查看上一张大图"><svg><use href="#arrow-left"/></svg></button><button class="icon-button" id="dialog-next" aria-label="查看下一张大图"><svg><use href="#arrow-right"/></svg></button></div></div></div></dialog>
+  <noscript><p class="noscript-note">开启 JavaScript 后可切换玩法、角色与实机截图。游戏介绍和常见问题仍可直接阅读。</p></noscript>
+</body>
+</html>
