@@ -47,6 +47,8 @@ npm run dev
 - `dist/content.json`：全部 169 个可编辑文案字段与对外链接，是文案的唯一来源。
 - `template.html`：页面结构和文案占位符。保存文案或 `npm run build` 时生成 `dist/index.html`，包括静态标题、搜索摘要和正文。
 - `dist/styles.css`：字体、颜色、桌面和移动端布局。
+- `dist/motion.css`：按钮反馈、滑动选中态、菜单与弹窗动效；顶部变量集中调整速度。
+- `dist/motion.js`：内容切换、图片预解码与选中标记的尺寸同步，遵循系统的减少动态效果偏好。
 - `dist/data.js`：角色和截图的素材标识、原画裁切参数。
 - `editor/`、`content/schema.mjs`、`server.mjs`：本地面板、字段定义与保存服务。
 - `deploy/`：GitHub 凭据读取、固定仓库配置与发布任务；`.github/workflows/pages.yml` 为 Pages 工作流。

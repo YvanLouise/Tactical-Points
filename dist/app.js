@@ -1,4 +1,5 @@
 import { CHARACTERS as CHARACTER_ASSETS, SCREENSHOTS as SCREENSHOT_ASSETS } from "./data.js";
+import { revealContent, setupIndicators, swapImage, syncIndicator } from "./motion.js";
 
 const response = await fetch(new URL("./content.json", import.meta.url), { cache: "no-cache" });
 if (!response.ok) throw new Error("Unable to load website content");
@@ -33,6 +34,7 @@ function selectTabs(list, key, value) {
     tab.setAttribute("aria-selected", String(selected));
     tab.tabIndex = selected ? 0 : -1;
   }
+  syncIndicator(list);
 }
 
 function wireTabs(list, callback) {
@@ -59,7 +61,7 @@ function renderVersion() {
   $("#version-full small").textContent = copy[state.mode === "kingdom" ? "versions.kingdomFullNote" : "versions.full.note"];
 }
 
-function renderMode() {
+function renderMode(direction = 1) {
   const mode = MODES[state.mode];
   selectTabs($(".mode-tabs"), "mode", state.mode);
   $("#mode-panel").setAttribute("aria-labelledby", `mode-${state.mode}`);
@@ -67,8 +69,7 @@ function renderMode() {
   $("#mode-description").textContent = mode.description;
   $("#diagram-caption").textContent = mode.diagram;
   $("#mode-caption").textContent = mode.caption;
-  $("#mode-image").src = `./assets/screens/${mode.screenshot}.png`;
-  $("#mode-image").alt = `${state.mode === "tactical" ? "术点" : "王国"}模式实机画面`;
+  swapImage($("#mode-image"), `./assets/screens/${mode.screenshot}.png`, { alt: `${state.mode === "tactical" ? "术点" : "王国"}模式实机画面`, direction });
   $("#mode-steps").replaceChildren(...mode.steps.map((text, index) => {
     const li = document.createElement("li");
     const number = document.createElement("span");
@@ -87,11 +88,10 @@ function renderSkill() {
   $("#skill-description").textContent = role[state.skill][1];
 }
 
-function renderCharacter() {
+function renderCharacter(direction = 1) {
   const role = CHARACTERS.find((character) => character.id === state.character);
   selectTabs($("#character-picker"), "character", state.character);
-  $("#character-image").src = `./assets/characters/${role.id}.png`;
-  $("#character-image").alt = `${role.name}角色原画`;
+  swapImage($("#character-image"), `./assets/characters/${role.id}.png`, { alt: `${role.name}角色原画`, direction });
   $("#character-name").textContent = role.name;
   $("#character-english").textContent = role.english;
   $("#character-quote").textContent = `「${role.quote}」`;
@@ -128,30 +128,38 @@ function buildCharacters() {
   }
   $(".character-stage").id = "character-panel";
   $(".character-stage").setAttribute("role", "tabpanel");
-  wireTabs(picker, (tab) => { state.character = tab.dataset.character; renderCharacter(); });
+  wireTabs(picker, (tab) => {
+    if (state.character === tab.dataset.character) return;
+    const direction = Math.sign(CHARACTERS.findIndex((role) => role.id === tab.dataset.character) - CHARACTERS.findIndex((role) => role.id === state.character));
+    state.character = tab.dataset.character;
+    renderCharacter(direction);
+    revealContent([$("#character-name"), $("#character-english"), $("#character-quote"), $("#skill-panel")], { direction });
+  });
   renderCharacter();
 }
 
-function showScreenshot(index) {
+function showScreenshot(index, animate = false) {
+  const previous = state.screenshot;
+  const direction = Math.sign(index - previous) || 1;
   state.screenshot = (index + SCREENSHOTS.length) % SCREENSHOTS.length;
   const shot = SCREENSHOTS[state.screenshot];
   const source = `./assets/screens/${shot.id}.png`;
-  $("#gallery-image").src = source;
-  $("#gallery-image").alt = shot.alt;
+  swapImage($("#gallery-image"), source, { alt: shot.alt, direction });
   $("#gallery-caption").textContent = shot.caption;
   $("#gallery-open").setAttribute("aria-label", `放大查看：${shot.title}`);
   $("#gallery-count").textContent = `${String(state.screenshot + 1).padStart(2, "0")} / ${String(SCREENSHOTS.length).padStart(2, "0")}`;
   for (const [position, button] of [...$("#gallery-thumbnails").children].entries()) {
     button.setAttribute("aria-pressed", String(position === state.screenshot));
   }
-  if (dialog.open) renderDialogImage();
+  if (animate && previous !== state.screenshot) revealContent([$("#gallery-caption"), $("#gallery-count")], { direction, stagger: 18 });
+  if (dialog.open) renderDialogImage(direction, animate);
 }
 
-function renderDialogImage() {
+function renderDialogImage(direction = 1, animate = false) {
   const shot = SCREENSHOTS[state.screenshot];
-  $("#dialog-image").src = `./assets/screens/${shot.id}.png`;
-  $("#dialog-image").alt = shot.alt;
+  swapImage($("#dialog-image"), `./assets/screens/${shot.id}.png`, { alt: shot.alt, direction });
   $("#dialog-caption").textContent = shot.caption;
+  if (animate) revealContent([$("#dialog-caption")], { direction });
 }
 
 function openScreenshot(index = state.screenshot) {
@@ -177,16 +185,16 @@ function buildGallery() {
     image.width = 320;
     image.height = 180;
     button.append(image);
-    button.addEventListener("click", () => showScreenshot(index));
+    button.addEventListener("click", () => showScreenshot(index, true));
     rail.append(button);
   }
-  $("#gallery-prev").addEventListener("click", () => showScreenshot(state.screenshot - 1));
-  $("#gallery-next").addEventListener("click", () => showScreenshot(state.screenshot + 1));
+  $("#gallery-prev").addEventListener("click", () => showScreenshot(state.screenshot - 1, true));
+  $("#gallery-next").addEventListener("click", () => showScreenshot(state.screenshot + 1, true));
   $("#gallery-open").addEventListener("click", () => openScreenshot());
   $("#mode-preview").addEventListener("click", () => openScreenshot(state.mode === "tactical" ? 0 : 1));
   $("#dialog-close").addEventListener("click", () => dialog.close());
-  $("#dialog-prev").addEventListener("click", () => showScreenshot(state.screenshot - 1));
-  $("#dialog-next").addEventListener("click", () => showScreenshot(state.screenshot + 1));
+  $("#dialog-prev").addEventListener("click", () => showScreenshot(state.screenshot - 1, true));
+  $("#dialog-next").addEventListener("click", () => showScreenshot(state.screenshot + 1, true));
   dialog.addEventListener("close", () => { document.body.style.overflow = ""; });
   dialog.addEventListener("click", (event) => {
     if (event.target !== dialog) return;
@@ -196,7 +204,7 @@ function buildGallery() {
   dialog.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    showScreenshot(state.screenshot + (event.key === "ArrowRight" ? 1 : -1));
+    showScreenshot(state.screenshot + (event.key === "ArrowRight" ? 1 : -1), true);
   });
   showScreenshot(state.screenshot);
 }
@@ -204,16 +212,24 @@ function buildGallery() {
 function setupNavigation() {
   const toggle = $("#menu-toggle");
   const nav = $("#site-nav");
+  const mobileNav = window.matchMedia("(max-width: 760px)");
+  const syncMenu = () => { nav.inert = mobileNav.matches && !nav.classList.contains("is-open"); };
   function closeMenu() {
     nav.classList.remove("is-open");
     toggle.setAttribute("aria-expanded", "false");
     toggle.setAttribute("aria-label", "打开导航");
+    toggle.querySelector("use").setAttribute("href", "#menu");
+    syncMenu();
   }
   toggle.addEventListener("click", () => {
     const open = nav.classList.toggle("is-open");
     toggle.setAttribute("aria-expanded", String(open));
     toggle.setAttribute("aria-label", open ? "关闭导航" : "打开导航");
+    toggle.querySelector("use").setAttribute("href", open ? "#close" : "#menu");
+    syncMenu();
   });
+  mobileNav.addEventListener("change", closeMenu);
+  syncMenu();
   nav.addEventListener("click", (event) => { if (event.target.closest("a")) closeMenu(); });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
@@ -312,12 +328,32 @@ function setupLocalPreview() {
   window.parent.postMessage({ type: "copy-preview-ready" }, location.origin);
 }
 
-wireTabs($(".mode-tabs"), (tab) => { state.mode = tab.dataset.mode; renderMode(); });
-wireTabs($(".version-tabs"), (tab) => { state.version = tab.dataset.version; renderVersion(); });
-wireTabs($(".skill-tabs"), (tab) => { state.skill = tab.dataset.skill; renderSkill(); });
+wireTabs($(".mode-tabs"), (tab) => {
+  if (state.mode === tab.dataset.mode) return;
+  const direction = tab.dataset.mode === "kingdom" ? 1 : -1;
+  state.mode = tab.dataset.mode;
+  renderMode(direction);
+  revealContent([$("#mode-title"), $("#mode-description"), $("#mode-steps"), $("#diagram-caption"), $("#mode-caption"), $("#version-panel")], { direction, stagger: 18 });
+});
+wireTabs($(".version-tabs"), (tab) => {
+  if (state.version === tab.dataset.version) return;
+  const order = ["standard", "advanced", "expert", "full"];
+  const direction = Math.sign(order.indexOf(tab.dataset.version) - order.indexOf(state.version));
+  state.version = tab.dataset.version;
+  renderVersion();
+  revealContent([$("#version-panel")], { direction });
+});
+wireTabs($(".skill-tabs"), (tab) => {
+  if (state.skill === tab.dataset.skill) return;
+  const direction = tab.dataset.skill === "kingdom" ? 1 : -1;
+  state.skill = tab.dataset.skill;
+  renderSkill();
+  revealContent([$("#skill-panel")], { direction });
+});
 renderMode();
 buildCharacters();
 buildGallery();
 setupNavigation();
 applyContent(copy);
+setupIndicators([...document.querySelectorAll('.mode-tabs, .version-tabs, .skill-tabs, #character-picker')]);
 setupLocalPreview();

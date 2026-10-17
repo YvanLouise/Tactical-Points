@@ -13,6 +13,14 @@ Source concepts: hero.png, modes.png, characters.png, gallery.png.
 - Native interactions: mode and version tabs, character selector and ability tabs, screenshot navigation and modal, mobile navigation, FAQ disclosure.
 - Motion: small opacity/translation changes; disable with prefers-reduced-motion.
 
+## Interaction motion
+
+- Press: 100ms; hover: 180ms; selection plate: 280ms; text reveal: 260ms with 24ms steps; decoded image reveal: 320ms; modal/menu: 180ms.
+- Easing: cubic-bezier(.22, 1, .36, 1). Only small translations and scale changes; no bounce loops, page-wide reveals, gradients or pointer trails.
+- Mode, version and skill tabs share one sliding indicator. Character selection moves a red ink underline; layout measurement refreshes after fonts and viewport changes.
+- Selection state and copy update immediately. Cancelled visual animations cannot delay or overwrite the latest selection. Images keep their previous frame until the next image is decoded; late image loads cannot override a newer choice.
+- Keep native keyboard tabs, focus rings, details and dialog behavior. Reduced motion disables both CSS transitions and Web Animations and immediately cancels animations already running.
+
 ## Hero copy lock
 
 - 术点牌

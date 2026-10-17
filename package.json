@@ -7,6 +7,6 @@
     "dev": "node server.mjs",
     "build": "node build.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check server.mjs && node --check dist/app.js && node --check editor/editor.js && node --check editor/publish.js && node --check deploy/github.mjs && node --check deploy/publisher.mjs && node --check content/schema.mjs && node --check content/store.mjs"
+    "check": "node --check server.mjs && node --check dist/app.js && node --check dist/motion.js && node --check editor/editor.js && node --check editor/publish.js && node --check deploy/github.mjs && node --check deploy/publisher.mjs && node --check content/schema.mjs && node --check content/store.mjs"
   }
 }
