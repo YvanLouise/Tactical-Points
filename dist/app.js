@@ -1,9 +1,31 @@
-import { MODES, CHARACTERS, SCREENSHOTS } from "./data.js";
-import { SITE_CONFIG } from "./config.js";
+import { CHARACTERS as CHARACTER_ASSETS, SCREENSHOTS as SCREENSHOT_ASSETS } from "./data.js";
+
+const response = await fetch(new URL("./content.json", import.meta.url), { cache: "no-cache" });
+if (!response.ok) throw new Error("Unable to load website content");
+let copy = await response.json();
+let MODES, CHARACTERS, SCREENSHOTS;
+
+function prepareContent(content) {
+  copy = content;
+  MODES = Object.fromEntries(["tactical", "kingdom"].map((id) => [id, {
+    ...Object.fromEntries(["title", "description", "diagram", "caption"].map((key) => [key, copy[`modes.${id}.${key}`]])),
+    screenshot: id,
+    steps: [1, 2, 3].map((step) => copy[`modes.${id}.step${step}`]),
+    versions: Object.fromEntries(["standard", "advanced", "expert", "full"].map((version) => [version, copy[`modes.${id}.versions.${version}`]])),
+  }]));
+  CHARACTERS = CHARACTER_ASSETS.map((asset) => ({ ...asset,
+    ...Object.fromEntries(["name", "english", "quote"].map((key) => [key, copy[`characters.${asset.id}.${key}`]])),
+    tactical: [copy[`characters.${asset.id}.tacticalName`], copy[`characters.${asset.id}.tacticalDescription`]],
+    kingdom: [copy[`characters.${asset.id}.kingdomName`], copy[`characters.${asset.id}.kingdomDescription`]],
+  }));
+  SCREENSHOTS = SCREENSHOT_ASSETS.map(({ id }) => ({ id, ...Object.fromEntries(["title", "caption", "alt"].map((key) => [key, copy[`gallery.${id}.${key}`]])) }));
+}
+prepareContent(copy);
 
 const $ = (selector) => document.querySelector(selector);
 const state = { mode: "tactical", version: "standard", character: "warrior", skill: "tactical", screenshot: 1 };
 const dialog = $("#screenshot-dialog");
+$(".versions").id = "versions";
 
 function selectTabs(list, key, value) {
   for (const tab of list.querySelectorAll('[role="tab"]')) {
@@ -34,7 +56,7 @@ function renderVersion() {
   selectTabs($(".version-tabs"), "version", state.version);
   $("#version-panel").textContent = MODES[state.mode].versions[state.version];
   $("#version-panel").setAttribute("aria-labelledby", `version-${state.version}`);
-  $("#version-full small").textContent = state.mode === "kingdom" ? "专属事件 · 待开放" : "探索事件机制";
+  $("#version-full small").textContent = copy[state.mode === "kingdom" ? "versions.kingdomFullNote" : "versions.full.note"];
 }
 
 function renderMode() {
@@ -225,21 +247,69 @@ function configuredUrl(value) {
 function setupReleaseLinks() {
   let available = false;
   for (const [key, id] of [["downloadUrl", "download-link"], ["communityUrl", "community-link"]]) {
-    const url = configuredUrl(SITE_CONFIG[key]);
-    if (!url) continue;
+    const url = configuredUrl(copy[`release.${key}`]);
     const link = $(`#${id}`);
+    link.hidden = !url;
+    if (!url) { link.removeAttribute("href"); continue; }
     link.href = url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     link.hidden = false;
     available = true;
-    if (key === "downloadUrl") {
-      $("#download-answer").textContent = "正式下载入口已准备好，可以通过下方的“下载游戏”前往下载页面。";
-      $(".development-status").lastChild.textContent = "持续更新中";
-    }
   }
   $("#release-links").hidden = !available;
-  $("#development-message").textContent = SITE_CONFIG.developmentMessage;
+  const ready = Boolean(configuredUrl(copy["release.downloadUrl"]));
+  $("#download-answer").textContent = copy[ready ? "faq.download.readyAnswer" : "faq.download.answer"];
+  $(".development-status").lastChild.textContent = copy[ready ? "release.readyStatus" : "release.status"];
+}
+
+function applyContent(content) {
+  prepareContent(content);
+  for (const element of document.querySelectorAll("[data-copy]")) {
+    const text = copy[element.dataset.copy];
+    if (typeof text === "string") element.textContent = text;
+  }
+  for (const element of document.querySelectorAll("[data-copy-alt]")) element.alt = copy[element.dataset.copyAlt];
+  document.title = copy["site.title"];
+  $("meta[name='description']").content = copy["site.description"];
+  $("meta[property='og:title']").content = copy["site.shareTitle"];
+  $("meta[property='og:description']").content = copy["site.shareDescription"];
+  $(".site-header .brand").setAttribute("aria-label", `${copy["site.brand"]}首页`);
+  for (const role of CHARACTERS) $(`#character-${role.id}`).lastChild.textContent = role.name;
+  SCREENSHOTS.forEach((shot, index) => $("#gallery-thumbnails").children[index].setAttribute("aria-label", `查看${shot.title}实机截图`));
+  renderMode();
+  renderCharacter();
+  showScreenshot(state.screenshot);
+  setupReleaseLinks();
+}
+
+function setupLocalPreview() {
+  if (!["localhost", "127.0.0.1"].includes(location.hostname) || window.parent === window || !new URLSearchParams(location.search).has("editor-preview")) return;
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      window.parent.postMessage({ type: "copy-editor-save" }, location.origin);
+    }
+  });
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== "copy-preview") return;
+    const { content, context = {}, focus = false } = event.data;
+    if (!content || Object.keys(copy).some((key) => typeof content[key] !== "string")) return;
+    if (["tactical", "kingdom"].includes(context.mode)) state.mode = context.mode;
+    if (["standard", "advanced", "expert", "full"].includes(context.version)) state.version = context.version;
+    if (CHARACTER_ASSETS.some((role) => role.id === context.character)) state.character = context.character;
+    if (["tactical", "kingdom"].includes(context.skill)) state.skill = context.skill;
+    if (Number.isInteger(context.screenshot) && context.screenshot >= 0 && context.screenshot < SCREENSHOTS.length) state.screenshot = context.screenshot;
+    applyContent(content);
+    if (Number.isInteger(context.faq)) {
+      const question = document.querySelectorAll(".faq-list details")[context.faq];
+      if (question) question.open = true;
+    }
+    if (focus && context.anchor === "intro") window.scrollTo({ top: 0, behavior: "instant" });
+    else if (focus && typeof context.anchor === "string") document.getElementById(context.anchor)?.scrollIntoView({ behavior: "instant", block: "start" });
+    window.parent.postMessage({ type: "copy-preview-applied" }, location.origin);
+  });
+  window.parent.postMessage({ type: "copy-preview-ready" }, location.origin);
 }
 
 wireTabs($(".mode-tabs"), (tab) => { state.mode = tab.dataset.mode; renderMode(); });
@@ -249,4 +319,5 @@ renderMode();
 buildCharacters();
 buildGallery();
 setupNavigation();
-setupReleaseLinks();
+applyContent(copy);
+setupLocalPreview();

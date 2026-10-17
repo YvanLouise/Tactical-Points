@@ -16,3 +16,5 @@
 @media(min-width:1201px){.hero{min-height:700px}.hero h1{font-size:clamp(98px,7.5vw,116px)}.hero-copy{transform:translateY(-30px)}.hero-description{font-size:18px}.hero-art img{width:810px;bottom:-35px}.modes{padding-top:65px}}
 @media(max-width:760px){.versions h3{font-size:22px;max-width:100%;text-wrap:balance}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+[data-copy],#mode-description,#version-panel,#skill-description,#download-answer,.faq-list details p,#development-message{white-space:pre-line}
+.hero-note [data-copy]{padding:0}

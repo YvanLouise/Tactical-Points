@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f0e7">
+  <meta name="description" content="{{site.description}}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{site.shareTitle}}">
+  <meta property="og:description" content="{{site.shareDescription}}">
+  <meta property="og:image" content="https://yvanlouise.github.io/Tactical-Points/assets/screens/kingdom.png">
+  <meta property="og:url" content="https://yvanlouise.github.io/Tactical-Points/">
+  <link rel="canonical" href="https://yvanlouise.github.io/Tactical-Points/">
+  <link rel="icon" href="./assets/favicon.png" type="image/png">
+  <link rel="preload" href="./assets/fonts/ZCOOLKuaiLe-Regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="./assets/hero.png" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+  <title>{{site.title}}</title>
+</head>
+<body>
+  <svg class="svg-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="arrow-left" viewBox="0 0 24 24"><path d="M20 12H4m6-6-6 6 6 6"/></symbol>
+    <symbol id="arrow-down" viewBox="0 0 24 24"><path d="M12 3v18m-7-7 7 7 7-7"/></symbol>
+    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="spark" viewBox="0 0 32 40"><path d="m16 2 3.5 13L30 20l-10.5 4L16 38l-3.5-14L2 20l10.5-5Z"/></symbol>
+  </svg>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header wrap">
+    <a class="brand" href="#intro" aria-label="术点牌首页"><svg class="brand-spark"><use href="#spark"/></svg><span><span data-copy="site.brand">{{site.brand}}</span></span></a>
+    <button class="menu-toggle icon-button" id="menu-toggle" aria-label="打开导航" aria-expanded="false" aria-controls="site-nav"><svg><use href="#menu"/></svg></button>
+    <nav id="site-nav" class="site-nav" aria-label="主导航">
+      <a class="nav-link is-active" href="#intro"><span data-copy="nav.intro">{{nav.intro}}</span></a>
+      <a class="nav-link" href="#modes"><span data-copy="nav.modes">{{nav.modes}}</span></a>
+      <a class="nav-link" href="#characters"><span data-copy="nav.characters">{{nav.characters}}</span></a>
+      <a class="nav-link" href="#gallery"><span data-copy="nav.gallery">{{nav.gallery}}</span></a>
+      <a class="header-cta" href="#development"><span data-copy="nav.development">{{nav.development}}</span><svg class="icon"><use href="#arrow-right"/></svg></a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" id="intro" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title"><span data-copy="hero.headingStart">{{hero.headingStart}}</span><br><span class="ink-underline"><span data-copy="hero.headingAccent">{{hero.headingAccent}}</span></span><span data-copy="hero.headingEnd">{{hero.headingEnd}}</span></h1>
+        <p class="hero-description"><span data-copy="hero.description">{{hero.description}}</span></p>
+        <div class="hero-actions"><a class="button button-dark" href="#modes"><span data-copy="hero.primaryButton">{{hero.primaryButton}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a class="text-link" href="#gallery"><span data-copy="hero.secondaryButton">{{hero.secondaryButton}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div>
+        <p class="hero-note"><span data-copy="hero.note">{{hero.note}}</span></p>
+      </div>
+      <div class="hero-art"><img src="./assets/hero.png" width="1358" height="1159" fetchpriority="high" alt="{{hero.imageAlt}}" data-copy-alt="hero.imageAlt"></div>
+    </section>
+    <div class="scroll-note wrap"><a href="#modes"><svg class="icon"><use href="#arrow-down"/></svg><span data-copy="hero.scroll">{{hero.scroll}}</span></a><span class="margin-scribble" aria-hidden="true">/ / /</span></div>
+
+    <section class="modes section wrap" id="modes" aria-labelledby="modes-title">
+      <div class="section-heading"><h2 id="modes-title"><span data-copy="modes.heading">{{modes.heading}}</span></h2><span class="chapter">01 / HOW TO PLAY</span></div>
+      <div class="mode-tabs tab-row" role="tablist" aria-label="玩法模式"><button id="mode-tactical" class="mode-tab" type="button" role="tab" aria-selected="true" aria-controls="mode-panel" data-mode="tactical"><span data-copy="modes.tactical.name">{{modes.tactical.name}}</span></button><button id="mode-kingdom" class="mode-tab" type="button" role="tab" aria-selected="false" aria-controls="mode-panel" tabindex="-1" data-mode="kingdom"><span data-copy="modes.kingdom.name">{{modes.kingdom.name}}</span></button></div>
+      <div id="mode-panel" class="mode-panel" role="tabpanel" aria-labelledby="mode-tactical">
+        <div class="mode-copy">
+          <h3 id="mode-title">{{modes.tactical.title}}</h3>
+          <p id="mode-description">{{modes.tactical.description}}</p>
+          <ol class="mode-steps" id="mode-steps"><li><span>01</span>{{modes.tactical.step1}}</li><li><span>02</span>{{modes.tactical.step2}}</li><li><span>03</span>{{modes.tactical.step3}}</li></ol>
+          <div class="card-diagram" aria-label="叠牌示意：4 加 4 等于 8"><div class="card-equation"><span class="point-card">4</span><span class="math-sign">+</span><span class="point-card">4</span><svg class="icon equation-arrow"><use href="#arrow-right"/></svg><span class="point-card result-card">8</span></div><p id="diagram-caption">{{modes.tactical.diagram}}</p></div>
+        </div>
+        <figure class="mode-figure"><button class="paper-frame mode-preview" id="mode-preview" type="button" aria-label="放大当前玩法实机截图"><img id="mode-image" src="./assets/screens/tactical.png" width="1280" height="720" loading="lazy" alt="术点模式的点数比对牌桌"></button><figcaption id="mode-caption">{{modes.tactical.caption}}</figcaption></figure>
+      </div>
+      <div class="versions"><h3><span data-copy="modes.versionsHeading">{{modes.versionsHeading}}</span></h3><div class="version-tabs" role="tablist" aria-label="玩法版本"><button id="version-standard" class="version-tab" role="tab" aria-selected="true" aria-controls="version-panel" data-version="standard"><span><span data-copy="versions.standard.name">{{versions.standard.name}}</span></span><small><span data-copy="versions.standard.note">{{versions.standard.note}}</span></small></button><button id="version-advanced" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="advanced"><span><span data-copy="versions.advanced.name">{{versions.advanced.name}}</span></span><small><span data-copy="versions.advanced.note">{{versions.advanced.note}}</span></small></button><button id="version-expert" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="expert"><span><span data-copy="versions.expert.name">{{versions.expert.name}}</span></span><small><span data-copy="versions.expert.note">{{versions.expert.note}}</span></small></button><button id="version-full" class="version-tab" role="tab" aria-selected="false" aria-controls="version-panel" tabindex="-1" data-version="full"><span><span data-copy="versions.full.name">{{versions.full.name}}</span></span><small><span data-copy="versions.full.note">{{versions.full.note}}</span></small></button></div><p id="version-panel" class="version-description" role="tabpanel" aria-labelledby="version-standard">{{modes.tactical.versions.standard}}</p><p class="development-footnote"><span data-copy="modes.footnote">{{modes.footnote}}</span></p></div>
+    </section>
+
+    <section class="characters section-band" id="characters" aria-labelledby="characters-title">
+      <div class="wrap">
+        <div class="section-heading"><div><h2 id="characters-title"><span data-copy="characters.heading">{{characters.heading}}</span></h2><p class="section-description"><span data-copy="characters.description">{{characters.description}}</span></p></div><span class="chapter">02 / CHARACTERS</span></div>
+        <div class="character-stage"><div class="character-art"><img id="character-image" src="./assets/characters/warrior.png" width="1080" height="1440" loading="lazy" alt="武士角色原画"></div><div class="character-info"><h3 id="character-name">{{characters.warrior.name}}</h3><p id="character-english" class="character-english">{{characters.warrior.english}}</p><p id="character-quote" class="character-quote">「{{characters.warrior.quote}}」</p><div class="skill-tabs tab-row" role="tablist" aria-label="角色能力所属模式"><button id="skill-tactical" role="tab" aria-selected="true" aria-controls="skill-panel" data-skill="tactical"><span data-copy="characters.tacticalLabel">{{characters.tacticalLabel}}</span></button><button id="skill-kingdom" role="tab" aria-selected="false" aria-controls="skill-panel" tabindex="-1" data-skill="kingdom"><span data-copy="characters.kingdomLabel">{{characters.kingdomLabel}}</span></button></div><div class="skill-panel" id="skill-panel" role="tabpanel" aria-labelledby="skill-tactical"><h4 id="skill-name">{{characters.warrior.tacticalName}}</h4><p id="skill-description">{{characters.warrior.tacticalDescription}}</p></div></div></div>
+        <div class="character-picker" id="character-picker" role="tablist" aria-label="选择角色"></div>
+        <p class="character-footnote"><span data-copy="characters.footnote">{{characters.footnote}}</span></p>
+      </div>
+    </section>
+
+    <section class="gallery section wrap" id="gallery" aria-labelledby="gallery-title">
+      <div class="section-heading"><h2 id="gallery-title"><span data-copy="gallery.heading">{{gallery.heading}}</span></h2><span class="chapter">03 / IN GAME</span></div>
+      <figure class="gallery-main"><button class="paper-frame gallery-open" id="gallery-open" aria-label="放大查看当前实机截图"><img id="gallery-image" src="./assets/screens/kingdom.png" width="1672" height="941" loading="lazy" alt="王国模式中的部署和领地争夺"></button><div class="gallery-caption"><figcaption id="gallery-caption">{{gallery.kingdom.caption}}</figcaption><div class="gallery-controls"><button class="icon-button" id="gallery-prev" aria-label="上一张实机截图"><svg><use href="#arrow-left"/></svg></button><span id="gallery-count" class="gallery-count" aria-live="polite">02 / 04</span><button class="icon-button" id="gallery-next" aria-label="下一张实机截图"><svg><use href="#arrow-right"/></svg></button></div></div></figure>
+      <div id="gallery-thumbnails" class="gallery-thumbnails" aria-label="选择实机截图"></div>
+    </section>
+
+    <section id="faq" class="faq wrap" aria-labelledby="faq-title"><div class="faq-heading"><h2 id="faq-title"><span data-copy="faq.heading">{{faq.heading}}</span></h2><img src="./assets/cat.svg" width="150" height="100" loading="lazy" alt=""></div><div class="faq-list"><details open><summary><span data-copy="faq.download.question">{{faq.download.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p id="download-answer"><span data-copy="faq.download.answer">{{faq.download.answer}}</span></p></details><details><summary><span data-copy="faq.multiplayer.question">{{faq.multiplayer.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.multiplayer.answer">{{faq.multiplayer.answer}}</span></p></details><details><summary><span data-copy="faq.kingdom.question">{{faq.kingdom.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.kingdom.answer">{{faq.kingdom.answer}}</span></p></details></div></section>
+
+    <section class="development wrap" id="development" aria-labelledby="development-title"><div class="closing-rule"><svg><use href="#spark"/></svg></div><h2 id="development-title"><span data-copy="release.heading">{{release.heading}}</span></h2><p id="development-message"><span data-copy="release.message">{{release.message}}</span></p><span class="development-status"><span></span><span data-copy="release.status">{{release.status}}</span></span><div class="release-links" id="release-links" hidden><a id="download-link" class="button button-dark" hidden><span data-copy="release.downloadLabel">{{release.downloadLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a id="community-link" class="text-link" hidden><span data-copy="release.communityLabel">{{release.communityLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div></section>
+  </main>
+  <footer class="site-footer wrap"><div><a class="brand footer-brand" href="#intro"><svg class="brand-spark"><use href="#spark"/></svg><span data-copy="site.brand">{{site.brand}}</span></a><span class="english-title"><span data-copy="footer.english">{{footer.english}}</span></span></div><p><span data-copy="footer.credit">{{footer.credit}}</span><br><span><span data-copy="footer.copyright">{{footer.copyright}}</span></span></p></footer>
+  <dialog id="screenshot-dialog" class="screenshot-dialog" aria-labelledby="dialog-caption"><div class="lightbox-inner"><button id="dialog-close" class="icon-button lightbox-close" aria-label="关闭截图"><svg><use href="#close"/></svg></button><img id="dialog-image" alt=""><div class="dialog-footer"><p id="dialog-caption"></p><div class="gallery-controls"><button class="icon-button" id="dialog-prev" aria-label="查看上一张大图"><svg><use href="#arrow-left"/></svg></button><button class="icon-button" id="dialog-next" aria-label="查看下一张大图"><svg><use href="#arrow-right"/></svg></button></div></div></div></dialog>
+  <noscript><p class="noscript-note">开启 JavaScript 后可切换玩法、角色与实机截图。游戏介绍和常见问题仍可直接阅读。</p></noscript>
+</body>
+</html>
