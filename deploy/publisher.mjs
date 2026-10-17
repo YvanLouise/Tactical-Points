@@ -106,8 +106,14 @@ export async function createPublisher({ root, store, runGit = (args, options) =>
       return head;
     });
     await transition("pushing", "正在上传官网内容到 GitHub…", { commit: null });
-    try { await runGit(["push", "origin", `${sha}:refs/heads/${TARGET.branch}`], { token: api.token, timeout: 120000 }); }
-    catch { throw new PublishError("推送未成功。请检查网络、仓库权限与远端版本；本地提交已保留，可重试。", 502, "push_failed"); }
+    const pushArgs = ["push", "origin", `${sha}:refs/heads/${TARGET.branch}`];
+    try { await runGit(pushArgs, { token: api.token, timeout: 120000 }); }
+    catch (failure) {
+      if (/workflow|non-fast-forward|fetch first|protected branch|GH00[136]/i.test(failure.stderr || "")) throw new PublishError("GitHub 拒绝推送。请检查工作流写入权限、分支规则或远端版本；本地提交已保留。", 409, "push_rejected");
+      await transition("pushing", "上传请求未完成，正在自动重试一次…");
+      try { await runGit(pushArgs, { token: api.token, timeout: 120000 }); }
+      catch { throw new PublishError("上传重试未成功。请检查网络、仓库权限与远端版本；本地提交已保留，可稍后重试。", 502, "push_failed"); }
+    }
     await transition("waiting", "官网内容已上传，正在配置 GitHub Pages…", { commit: sha });
     const pages = await api.ensurePages();
     if (pages?.html_url) state.siteUrl = safeSiteUrl(pages.html_url);

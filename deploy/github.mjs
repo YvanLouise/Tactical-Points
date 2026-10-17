@@ -17,7 +17,7 @@ export function command(file, args, { cwd, env = {}, input, timeout = 30000, all
   });
 }
 
-const quietEnvironment = { GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", GIT_TRACE: "0", GIT_TRACE_CURL: "0", GIT_CURL_VERBOSE: "0" };
+const quietEnvironment = { GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", GIT_TRACE: undefined, GIT_TRACE_CURL: undefined, GIT_CURL_VERBOSE: undefined, GCM_TRACE: undefined };
 export function git(root, args, { token, ...options } = {}) {
   const env = { ...quietEnvironment, ...options.env };
   if (token) {

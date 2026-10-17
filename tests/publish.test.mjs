@@ -26,7 +26,7 @@ async function fixture(t) {
   await run(["add", "."]); await run(["commit", "-m", "Initial fixture"]);
   const store = createContentStore(root);
   let now = Date.now(), workflow = null, pages = { html_url: TARGET.siteUrl, build_type: "workflow" };
-  let dispatches = 0, pushes = 0;
+  let dispatches = 0, pushes = 0, failedPushes = 0;
   const api = {
     token: "test-token-must-never-be-exposed", user: async () => ({ login: TARGET.owner }),
     repository: async () => ({ permissions: { push: true }, archived: false, disabled: false }),
@@ -35,7 +35,10 @@ async function fixture(t) {
   };
   const runGit = async (args, options) => {
     if (args[0] === "remote" && args[1] === "get-url") return { code: 0, stdout: TARGET.remote };
-    if (args[0] === "push") pushes++;
+    if (args[0] === "push") {
+      pushes++;
+      if (failedPushes > 0) { failedPushes--; throw Object.assign(new Error("Temporary connection reset"), { stderr: "RPC failed; connection reset by peer" }); }
+    }
     return run(args, { ...options, token: undefined });
   };
   const dependencies = { root, store, runGit, getClient: async () => api, clock: () => now };
@@ -44,6 +47,7 @@ async function fixture(t) {
   return { root, remote, store, run, publisher, dependencies,
     advance: () => { now += 16000; }, setWorkflow: (value) => { workflow = value; }, setPages: (value) => { pages = value; },
     get dispatches() { return dispatches; }, get pushes() { return pushes; },
+    failNextPush: () => { failedPushes = 1; },
   };
 }
 
@@ -130,6 +134,15 @@ test("copy saves wait while publication captures a consistent snapshot", async (
   const saved = f.store.save({ ...initial.content, "hero.note": "等待发布快照结束后保存" }, initial.revision);
   release(); await snapshot;
   assert.equal((await saved).status, 200);
+});
+
+test("a temporary push failure retries once using the same immutable commit", async (t) => {
+  const f = await fixture(t); f.failNextPush();
+  await f.publisher.start((await f.store.load()).revision); await f.publisher.waitForIdle();
+  assert.equal(f.pushes, 2);
+  assert.equal(f.publisher.snapshot().phase, "waiting");
+  assert.ok((await f.run(["ls-remote", "origin", "refs/heads/main"])).stdout.startsWith(f.publisher.snapshot().commit));
+  assert.ok(f.publisher.snapshot().logs.some((entry) => entry.message.includes("自动重试")));
 });
 test("GitHub client ignores unrelated commit runs and enables Pages with the workflow API", async () => {
   const sha = "a".repeat(40), calls = [];
