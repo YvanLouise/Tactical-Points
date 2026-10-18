@@ -75,7 +75,11 @@ export function setupIndicators(rails) {
       if (!selected) return;
       const container = rail.getBoundingClientRect();
       const target = selected.getBoundingClientRect();
-      if (!target.width || !target.height) return;
+      if (!target.width || !target.height) {
+        rail.removeAttribute("data-motion-tabs");
+        rail.removeAttribute("data-motion-ready");
+        return;
+      }
       const picker = rail.classList.contains("character-picker");
       const x = target.left - container.left + rail.scrollLeft - rail.clientLeft;
       const y = target.top - container.top + rail.scrollTop - rail.clientTop;

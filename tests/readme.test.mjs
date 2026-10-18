@@ -49,6 +49,16 @@ test("stale and simultaneous README saves cannot overwrite another window", asyn
   assert.equal(await readFile(path.join(f.root, "README.md"), "utf8"), winner);
   assert.equal((await f.put("# Old revision\n")).status, 409);
 });
+test("README can be cleared, saved as an empty file and restored", async (t) => {
+  const f = await fixture(t);
+  const cleared = await f.put("");
+  assert.equal(cleared.status, 200);
+  const empty = await cleared.json();
+  assert.equal(await readFile(path.join(f.root, "README.md"), "utf8"), "");
+  assert.equal((await fetch(`${f.origin}/api/editor/readme`).then((response) => response.json())).content, "");
+  assert.equal((await f.put(f.initial.content, empty.revision)).status, 200);
+  assert.equal(await readFile(path.join(f.root, "README.md"), "utf8"), f.initial.content);
+});
 
 test("README API checks authorization, text size and request format before writing", async (t) => {
   const f = await fixture(t);

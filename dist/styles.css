@@ -18,3 +18,4 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
 [data-copy],#mode-description,#version-panel,#skill-description,#download-answer,.faq-list details p,#development-message{white-space:pre-line}
 .hero-note [data-copy]{padding:0}
+#menu-toggle[hidden]{display:none!important}

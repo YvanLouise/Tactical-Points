@@ -27,6 +27,36 @@ const $ = (selector) => document.querySelector(selector);
 const state = { mode: "tactical", version: "standard", character: "warrior", skill: "tactical", screenshot: 1 };
 const dialog = $("#screenshot-dialog");
 $(".versions").id = "versions";
+const hasText = (value) => typeof value === "string" && Boolean(value.trim());
+function optionalText(element, text) {
+  element.textContent = hasText(text) ? text : "";
+  element.hidden = !hasText(text);
+}
+
+function syncCopyVisibility() {
+  for (const selector of [".hero-actions a", ".scroll-note a", "#site-nav a", ".mode-tabs button", ".skill-tabs button", ".version-tab", ".version-tab > span", ".version-tab > small", "h1", "h2", "h3", "h4", ".hero-description", ".hero-note", ".mode-copy > p", ".versions > p", ".section-description", ".character-footnote", ".development > p", ".development-status", ".english-title", ".site-footer > p"]) {
+    for (const element of document.querySelectorAll(selector)) element.hidden = !hasText(element.textContent);
+  }
+  $(".hero-actions").hidden = [...$(".hero-actions").children].every((element) => element.hidden);
+  const emptyNavigation = [...$("#site-nav").children].every((element) => element.hidden);
+  $("#site-nav").hidden = emptyNavigation;
+  $("#menu-toggle").hidden = emptyNavigation;
+  $(".scroll-note").hidden = $(".scroll-note a").hidden;
+  $(".ink-underline").hidden = !hasText(copy["hero.headingAccent"]);
+  $("#hero-title br").hidden = !hasText(copy["hero.headingStart"]) || !hasText(copy["hero.headingAccent"] + copy["hero.headingEnd"]);
+  for (const rail of document.querySelectorAll(".mode-tabs, .skill-tabs, .version-tabs")) {
+    const visibleTabs = [...rail.children].filter((element) => !element.hidden);
+    rail.hidden = !visibleTabs.length;
+    if (visibleTabs.length && !visibleTabs.some((element) => element.tabIndex === 0)) visibleTabs[0].tabIndex = 0;
+  }
+  for (const item of document.querySelectorAll(".faq-list details")) {
+    const summary = item.querySelector("summary"), answer = item.querySelector("p");
+    summary.hidden = !hasText(summary.textContent); answer.hidden = !hasText(answer.textContent);
+    item.hidden = summary.hidden && answer.hidden;
+    if (summary.hidden) item.open = true;
+  }
+  $("#faq").hidden = !hasText($("#faq").textContent);
+}
 
 function selectTabs(list, key, value) {
   for (const tab of list.querySelectorAll('[role="tab"]')) {
@@ -43,7 +73,7 @@ function wireTabs(list, callback) {
     if (tab && list.contains(tab)) callback(tab);
   });
   list.addEventListener("keydown", (event) => {
-    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const tabs = [...list.querySelectorAll('[role="tab"]')].filter((tab) => !tab.hidden);
     const current = tabs.indexOf(event.target.closest('[role="tab"]'));
     if (current < 0 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -56,27 +86,29 @@ function wireTabs(list, callback) {
 
 function renderVersion() {
   selectTabs($(".version-tabs"), "version", state.version);
-  $("#version-panel").textContent = MODES[state.mode].versions[state.version];
+  optionalText($("#version-panel"), MODES[state.mode].versions[state.version]);
   $("#version-panel").setAttribute("aria-labelledby", `version-${state.version}`);
-  $("#version-full small").textContent = copy[state.mode === "kingdom" ? "versions.kingdomFullNote" : "versions.full.note"];
+  optionalText($("#version-full small"), copy[state.mode === "kingdom" ? "versions.kingdomFullNote" : "versions.full.note"]);
+  syncCopyVisibility();
 }
 
 function renderMode(direction = 1) {
   const mode = MODES[state.mode];
   selectTabs($(".mode-tabs"), "mode", state.mode);
   $("#mode-panel").setAttribute("aria-labelledby", `mode-${state.mode}`);
-  $("#mode-title").textContent = mode.title;
-  $("#mode-description").textContent = mode.description;
-  $("#diagram-caption").textContent = mode.diagram;
-  $("#mode-caption").textContent = mode.caption;
+  optionalText($("#mode-title"), mode.title);
+  optionalText($("#mode-description"), mode.description);
+  optionalText($("#diagram-caption"), mode.diagram);
+  optionalText($("#mode-caption"), mode.caption);
   swapImage($("#mode-image"), `./assets/screens/${mode.screenshot}.png`, { alt: `${state.mode === "tactical" ? "术点" : "王国"}模式实机画面`, direction });
-  $("#mode-steps").replaceChildren(...mode.steps.map((text, index) => {
+  $("#mode-steps").replaceChildren(...mode.steps.filter(hasText).map((text, index) => {
     const li = document.createElement("li");
     const number = document.createElement("span");
     number.textContent = String(index + 1).padStart(2, "0");
     li.append(number, document.createTextNode(text));
     return li;
   }));
+  $("#mode-steps").hidden = !$("#mode-steps").children.length;
   renderVersion();
 }
 
@@ -84,17 +116,18 @@ function renderSkill() {
   const role = CHARACTERS.find((character) => character.id === state.character);
   selectTabs($(".skill-tabs"), "skill", state.skill);
   $("#skill-panel").setAttribute("aria-labelledby", `skill-${state.skill}`);
-  $("#skill-name").textContent = role[state.skill][0];
-  $("#skill-description").textContent = role[state.skill][1];
+  optionalText($("#skill-name"), role[state.skill][0]);
+  optionalText($("#skill-description"), role[state.skill][1]);
+  $("#skill-panel").hidden = !role[state.skill].some(hasText);
 }
 
 function renderCharacter(direction = 1) {
   const role = CHARACTERS.find((character) => character.id === state.character);
   selectTabs($("#character-picker"), "character", state.character);
-  swapImage($("#character-image"), `./assets/characters/${role.id}.png`, { alt: `${role.name}角色原画`, direction });
-  $("#character-name").textContent = role.name;
-  $("#character-english").textContent = role.english;
-  $("#character-quote").textContent = `「${role.quote}」`;
+  swapImage($("#character-image"), `./assets/characters/${role.id}.png`, { alt: hasText(role.name) ? `${role.name}角色原画` : "角色原画", direction });
+  optionalText($("#character-name"), role.name);
+  optionalText($("#character-english"), role.english);
+  optionalText($("#character-quote"), hasText(role.quote) ? `「${role.quote}」` : "");
   $(".character-stage").setAttribute("aria-labelledby", `character-${role.id}`);
   renderSkill();
 }
@@ -145,8 +178,8 @@ function showScreenshot(index, animate = false) {
   const shot = SCREENSHOTS[state.screenshot];
   const source = `./assets/screens/${shot.id}.png`;
   swapImage($("#gallery-image"), source, { alt: shot.alt, direction });
-  $("#gallery-caption").textContent = shot.caption;
-  $("#gallery-open").setAttribute("aria-label", `放大查看：${shot.title}`);
+  optionalText($("#gallery-caption"), shot.caption);
+  $("#gallery-open").setAttribute("aria-label", hasText(shot.title) ? `放大查看：${shot.title}` : "放大查看当前实机截图");
   $("#gallery-count").textContent = `${String(state.screenshot + 1).padStart(2, "0")} / ${String(SCREENSHOTS.length).padStart(2, "0")}`;
   for (const [position, button] of [...$("#gallery-thumbnails").children].entries()) {
     button.setAttribute("aria-pressed", String(position === state.screenshot));
@@ -158,7 +191,9 @@ function showScreenshot(index, animate = false) {
 function renderDialogImage(direction = 1, animate = false) {
   const shot = SCREENSHOTS[state.screenshot];
   swapImage($("#dialog-image"), `./assets/screens/${shot.id}.png`, { alt: shot.alt, direction });
-  $("#dialog-caption").textContent = shot.caption;
+  optionalText($("#dialog-caption"), shot.caption);
+  if (hasText(shot.caption)) { dialog.setAttribute("aria-labelledby", "dialog-caption"); dialog.removeAttribute("aria-label"); }
+  else { dialog.removeAttribute("aria-labelledby"); dialog.setAttribute("aria-label", "实机截图预览"); }
   if (animate) revealContent([$("#dialog-caption")], { direction });
 }
 
@@ -265,8 +300,9 @@ function setupReleaseLinks() {
   for (const [key, id] of [["downloadUrl", "download-link"], ["communityUrl", "community-link"]]) {
     const url = configuredUrl(copy[`release.${key}`]);
     const link = $(`#${id}`);
-    link.hidden = !url;
-    if (!url) { link.removeAttribute("href"); continue; }
+    const label = copy[`release.${key === "downloadUrl" ? "downloadLabel" : "communityLabel"}`];
+    link.hidden = !url || !hasText(label);
+    if (link.hidden) { link.removeAttribute("href"); continue; }
     link.href = url;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
@@ -275,7 +311,7 @@ function setupReleaseLinks() {
   }
   $("#release-links").hidden = !available;
   const ready = Boolean(configuredUrl(copy["release.downloadUrl"]));
-  $("#download-answer").textContent = copy[ready ? "faq.download.readyAnswer" : "faq.download.answer"];
+  optionalText($("#download-answer"), copy[ready ? "faq.download.readyAnswer" : "faq.download.answer"]);
   $(".development-status").lastChild.textContent = copy[ready ? "release.readyStatus" : "release.status"];
 }
 
@@ -283,7 +319,7 @@ function applyContent(content) {
   prepareContent(content);
   for (const element of document.querySelectorAll("[data-copy]")) {
     const text = copy[element.dataset.copy];
-    if (typeof text === "string") element.textContent = text;
+    if (typeof text === "string") element.textContent = hasText(text) ? text : "";
   }
   for (const element of document.querySelectorAll("[data-copy-alt]")) element.alt = copy[element.dataset.copyAlt];
   document.title = copy["site.title"];
@@ -291,12 +327,17 @@ function applyContent(content) {
   $("meta[property='og:title']").content = copy["site.shareTitle"];
   $("meta[property='og:description']").content = copy["site.shareDescription"];
   $(".site-header .brand").setAttribute("aria-label", `${copy["site.brand"]}首页`);
-  for (const role of CHARACTERS) $(`#character-${role.id}`).lastChild.textContent = role.name;
-  SCREENSHOTS.forEach((shot, index) => $("#gallery-thumbnails").children[index].setAttribute("aria-label", `查看${shot.title}实机截图`));
+  CHARACTERS.forEach((role, index) => {
+    const button = $(`#character-${role.id}`);
+    optionalText(button.lastChild, role.name);
+    button.setAttribute("aria-label", hasText(role.name) ? role.name : `角色 ${index + 1}`);
+  });
+  SCREENSHOTS.forEach((shot, index) => $("#gallery-thumbnails").children[index].setAttribute("aria-label", hasText(shot.title) ? `查看${shot.title}实机截图` : `查看第 ${index + 1} 张实机截图`));
   renderMode();
   renderCharacter();
   showScreenshot(state.screenshot);
   setupReleaseLinks();
+  syncCopyVisibility();
 }
 
 function setupLocalPreview() {

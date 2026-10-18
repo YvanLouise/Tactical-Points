@@ -16,6 +16,7 @@ export function createReadmeEditor({ getToken, onChange, onError }) {
     $("#readme-metrics").textContent = `${draft.length.toLocaleString("zh-CN")} 字符 · ${(bytes / 1024).toFixed(1)} / ${maxBytes / 1024} KB`;
     $("#readme-metrics").classList.toggle("is-invalid", bytes > maxBytes);
     for (const button of $("#readme-format").querySelectorAll("button")) button.disabled = !loaded;
+    $("#readme-clear").disabled = !loaded || !draft || saving;
     if (!previewQueued) {
       previewQueued = true;
       requestAnimationFrame(() => { previewQueued = false; renderMarkdown(draft, $("#readme-preview")); });
@@ -32,6 +33,7 @@ export function createReadmeEditor({ getToken, onChange, onError }) {
     checkpoint(typing); draft = value; onError(""); update();
   }
   source.addEventListener("input", () => change(source.value, true));
+  $("#readme-clear").addEventListener("click", () => { if (loaded && !saving) change(""); });
   source.addEventListener("blur", () => { editedAt = 0; });
   $("#readme-format").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-format]");

@@ -1,6 +1,6 @@
 import { CHARACTERS, SCREENSHOTS } from "../dist/data.js";
 
-const field = (key, label, options = {}) => ({ key, label, maxLength: 300, rows: 1, ...options });
+const field = (key, label, options = {}) => ({ key, label, maxLength: 300, rows: 1, optional: true, ...options });
 const paragraph = (key, label, options) => field(key, label, { rows: 3, maxLength: 2000, ...options });
 const group = (label, fields, context = {}) => ({ label, fields, context });
 const roleNames = ["武士", "学者", "守卫", "冒险家", "特种兵", "魔术师", "巫师", "商人", "铁卫", "困兽", "先知"];

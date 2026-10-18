@@ -78,6 +78,7 @@ function updateStatus() {
     container.classList.toggle("is-changed", draft[item.key] !== saved[item.key]);
     container.querySelector(".counter").textContent = `${draft[item.key].length} / ${item.maxLength}`;
     container.querySelector(".reset-field").disabled = draft[item.key] === original[item.key] || saving;
+    container.querySelector(".clear-field").disabled = draft[item.key] === "" || saving;
     container.querySelector(".field-error").textContent = error;
     container.querySelector(".field-error").hidden = !error;
     input.setAttribute("aria-invalid", String(Boolean(error)));
@@ -117,7 +118,11 @@ function buildField(item, group) {
   const reset = element("button", "恢复原文", "reset-field"); reset.type = "button";
   reset.setAttribute("aria-label", `恢复${item.label}原文`);
   reset.addEventListener("click", () => { setContext(group, item); checkpoint(); draft[item.key] = original[item.key]; message(""); updateStatus(); preview(); });
-  heading.append(label, reset);
+  const clear = element("button", "清空", "reset-field clear-field"); clear.type = "button";
+  clear.setAttribute("aria-label", `清空${item.label}`);
+  clear.addEventListener("click", () => { setContext(group, item); checkpoint(); draft[item.key] = ""; message(""); updateStatus(); preview(); });
+  const actions = element("div", "", "field-actions"); actions.append(clear, reset);
+  heading.append(label, actions);
   const input = element(item.rows > 1 ? "textarea" : "input");
   input.id = item.key; input.name = item.key; input.value = draft[item.key]; input.maxLength = item.maxLength;
   if (item.rows > 1) input.rows = item.rows;
@@ -126,7 +131,7 @@ function buildField(item, group) {
   input.addEventListener("focus", () => setContext(group, item));
   input.addEventListener("input", () => changeField(item.key, input.value));
   const meta = element("div", "", "field-meta");
-  const hint = element("span", item.hint || ""); hint.id = `${item.key}-hint`;
+  const hint = element("span", item.hint ? `${item.hint} 可留空。` : "可留空，清空后不显示对应文字。"); hint.id = `${item.key}-hint`;
   meta.append(hint, element("span", "", "counter"));
   const error = element("p", "", "field-error"); error.id = `${item.key}-error`; error.hidden = true;
   container.append(heading, input, meta, error);

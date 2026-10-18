@@ -56,10 +56,22 @@ test("invalid fields and unsafe links cannot change files", async (t) => {
   const { root, state, put } = await fixture(t);
   const before = await readFile(path.join(root, "dist/content.json"), "utf8");
   const missing = { ...state.content }; delete missing["hero.note"];
-  for (const next of [missing, { ...state.content, extra: "value" }, { ...state.content, "hero.note": "" }, { ...state.content, "hero.note": 12 }, { ...state.content, "hero.note": "a".repeat(301) }, { ...state.content, "release.downloadUrl": "javascript:alert(1)" }, { ...state.content, "release.communityUrl": "https://user:password@example.com/" }]) {
+  for (const next of [missing, { ...state.content, extra: "value" }, { ...state.content, "hero.note": null }, { ...state.content, "hero.note": 12 }, { ...state.content, "hero.note": "a".repeat(301) }, { ...state.content, "hero.note": "bad\u0000text" }, { ...state.content, "release.downloadUrl": "javascript:alert(1)" }, { ...state.content, "release.communityUrl": "https://user:password@example.com/" }]) {
     assert.equal((await put(next)).status, 422);
   }
   assert.equal(await readFile(path.join(root, "dist/content.json"), "utf8"), before);
+});
+test("every copy field can be empty, saved, reloaded and restored", async (t) => {
+  const { root, origin, state, put } = await fixture(t);
+  const empty = Object.fromEntries(fields.map((item) => [item.key, ""]));
+  assert.equal(validateContent(empty), null);
+  const response = await put(empty);
+  assert.equal(response.status, 200);
+  const saved = await response.json();
+  assert.deepEqual((await fetch(`${origin}/api/editor/content`).then((result) => result.json())).content, empty);
+  assert.equal((await createContentStore(root).load()).revision, saved.revision);
+  assert.equal((await put(state.content, saved.revision)).status, 200);
+  assert.deepEqual((await createContentStore(root).load()).content, state.content);
 });
 test("stale and simultaneous saves do not overwrite each other", async (t) => {
   const { root, state, put } = await fixture(t);
