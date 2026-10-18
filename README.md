@@ -28,17 +28,28 @@ npm run dev
 
 `npm run check` 检查语法，`npm test` 验证保存、发布、并发冲突及访问边界。
 
+## 在编辑器中修改 GitHub README
+
+1. 在左侧选择「GitHub README」，直接编辑 Markdown，右侧实时预览标题、加粗、列表、引用、代码块、表格和任务列表。上方工具栏可插入常用格式。
+2. 点击「保存 README」或按 `Ctrl+S`，写入官网仓库根目录的 `README.md`。README 与官网文案各有独立的撤销、重做和未保存状态，切换分区时草稿会保留。
+3. 点击「发布上线」，校验并保存官网文案和 README 后，一起同步到 `main`。只修改 README 时也会创建并推送提交；README 显示在 GitHub 仓库首页，网站访问地址保持不变。
+4. 「放弃未保存修改」和「重新加载文件」只作用于当前文档。其他窗口或外部编辑器修改过 README 时，保存会提示冲突，先复制需要保留的内容，再重新加载。
+
+README 支持 UTF-8，大小上限为 128 KB。预览在本机生成，不执行原始 HTML；高级 GitHub Markdown 扩展的最终排版以仓库页面为准。README 文件不存在时可直接创建，编辑器只读写固定的 `README.md` 路径。
+
+更新编辑器代码后，如果本地服务仍在运行，请关闭原来的服务终端，再双击 `start-editor.cmd` 并刷新编辑器页面，让新的保存和发布接口生效。
+
 ## 在编辑器中发布上线
 
 目标仓库：[YvanLouise/Tactical-Points](https://github.com/YvanLouise/Tactical-Points)，分支 `main`。官网地址：[术点牌官方网站](https://yvanlouise.github.io/Tactical-Points/) 。
 
 1. 双击 `start-editor.cmd`，点击编辑器右上角「发布上线」。
 2. 检查登录账号和仓库。首次使用若尚未登录，点击「登录 GitHub」在系统浏览器完成登录；面板复用 Git Credential Manager，不收集或存储 Token。
-3. 点击「发布已保存的版本」。有未保存的文案时，按钮为「保存并发布」，校验并保存成功后才发布。
+3. 点击「发布已保存的版本」。官网文案或 README 有未保存修改时，按钮为「保存并发布」，两份文档校验并保存成功后才发布。
 4. 面板显示上传、排队和部署进度。只有指定提交的 GitHub Pages 工作流成功，才会显示「官网已上线」和访问链接。可以关闭面板后再打开，或重启本地服务后检查上次结果。
 5. 上传遇到临时网络错误时会自动重试一次。失败时打开「查看 GitHub 部署详情」查看原因，再重试；如果提示远端有新提交，请先同步仓库，发布功能不会强制推送或自动合并。
 
-发布只提交 `dist/` 内的官网内容，不会把其他文件的暂存修改混入发布提交。GitHub Actions 的 `.github/workflows/pages.yml` 也只上传 `dist/` 作为站点产物，游戏本体、本地服务和登录凭据不会成为线上网站的一部分。首次接入已将编辑器源码与工作流作为官网项目代码提交到仓库，之后修改编辑器源码可单独正常提交。
+发布只提交 `dist/` 内的官网内容与根目录 `README.md`，不会把其他文件的暂存修改混入发布提交。两份文档按已保存版本捕获，文件发生变化时会停止发布并提示重新加载。GitHub Actions 的 `.github/workflows/pages.yml` 只上传 `dist/` 作为站点产物，README、游戏本体、本地服务和登录凭据不会成为线上网站的一部分。首次接入已将编辑器源码与工作流作为官网项目代码提交到仓库，之后修改编辑器源码可单独正常提交。
 
 本机需安装 Git 和 Node.js，并对该仓库有写入权限。首次启用 Pages 还需管理仓库 Pages 设置的权限。发布服务会自动将 Pages 来源配置为 GitHub Actions；现有自定义域名保持不变。发布状态保存在忽略提交的 `.cache/publish-state.json`，不含凭据。`GH_TOKEN` / `GITHUB_TOKEN` 环境变量也可用于无交互环境；请勿把令牌写进项目文件。
 
@@ -51,6 +62,7 @@ npm run dev
 - `dist/motion.js`：内容切换、图片预解码与选中标记的尺寸同步，遵循系统的减少动态效果偏好。
 - `dist/data.js`：角色和截图的素材标识、原画裁切参数。
 - `editor/`、`content/schema.mjs`、`server.mjs`：本地面板、字段定义与保存服务。
+- `editor/readme.js`、`editor/markdown.js`、`editor/readme.css`：README 编辑、Markdown 本地预览与排版；`content/readme-store.mjs` 处理固定文件的保存及版本冲突。
 - `deploy/`：GitHub 凭据读取、固定仓库配置与发布任务；`.github/workflows/pages.yml` 为 Pages 工作流。
 - `dist/assets/`：从游戏复制的角色和实机截图、官网首屏插画、字体及其授权说明。
 - `design/design-system.md`：视觉规范与内容约束。
