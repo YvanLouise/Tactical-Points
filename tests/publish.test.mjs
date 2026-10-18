@@ -8,6 +8,7 @@ import { createPublisher } from "../deploy/publisher.mjs";
 import { GitHubClient, git } from "../deploy/github.mjs";
 import { TARGET } from "../deploy/target.mjs";
 import { createContentStore } from "../content/store.mjs";
+import { createReadmeStore } from "../content/readme-store.mjs";
 
 const source = fileURLToPath(new URL("../", import.meta.url));
 async function fixture(t) {
@@ -15,7 +16,7 @@ async function fixture(t) {
   const root = path.join(folder, "site"), remote = path.join(folder, "remote.git");
   await mkdir(root);
   for (const name of ["dist", "content"]) await mkdir(path.join(root, name));
-  for (const name of ["dist/content.json", "dist/index.html", "template.html"]) await copyFile(path.join(source, name), path.join(root, name));
+  for (const name of ["dist/content.json", "dist/index.html", "template.html", "README.md"]) await copyFile(path.join(source, name), path.join(root, name));
   const run = (args, options) => git(root, args, options);
   await run(["init", "--initial-branch=main"]);
   await run(["config", "user.name", "Publish Test"]);
@@ -25,6 +26,7 @@ async function fixture(t) {
   await writeFile(path.join(root, "editor-note.txt"), "original editor source\n");
   await run(["add", "."]); await run(["commit", "-m", "Initial fixture"]);
   const store = createContentStore(root);
+  const readmeStore = createReadmeStore(root);
   let now = Date.now(), workflow = null, pages = { html_url: TARGET.siteUrl, build_type: "workflow" };
   let dispatches = 0, pushes = 0, failedPushes = 0;
   const api = {
@@ -41,10 +43,10 @@ async function fixture(t) {
     }
     return run(args, { ...options, token: undefined });
   };
-  const dependencies = { root, store, runGit, getClient: async () => api, clock: () => now };
+  const dependencies = { root, store, readmeStore, runGit, getClient: async () => api, clock: () => now };
   const publisher = await createPublisher(dependencies);
   t.after(async () => { await publisher.waitForIdle(); await rm(folder, { recursive: true, force: true }); });
-  return { root, remote, store, run, publisher, dependencies,
+  return { root, remote, store, readmeStore, run, publisher, dependencies,
     advance: () => { now += 16000; }, setWorkflow: (value) => { workflow = value; }, setPages: (value) => { pages = value; },
     get dispatches() { return dispatches; }, get pushes() { return pushes; },
     failNextPush: () => { failedPushes = 1; },
@@ -82,6 +84,48 @@ test("only a successful matching workflow and existing Pages URL count as live",
   assert.equal(completed.runUrl, `${TARGET.repositoryUrl}/actions/runs/123`);
   const restored = await createPublisher(f.dependencies);
   assert.equal((await restored.inspect()).phase, "success");
+});
+test("publishes README and website together while keeping unrelated staged edits", async (t) => {
+  const f = await fixture(t);
+  await writeFile(path.join(f.root, "editor-note.txt"), "keep this staged\n"); await f.run(["add", "editor-note.txt"]);
+  const copy = await f.store.load(), readme = await f.readmeStore.load();
+  const savedCopy = await f.store.save({ ...copy.content, "hero.note": "README 与官网同步发布" }, copy.revision);
+  const savedReadme = await f.readmeStore.save("# Repository introduction\n\nNew README content.\n", readme.revision);
+  await f.publisher.start(savedCopy.revision, savedReadme.revision); await f.publisher.waitForIdle();
+  const state = f.publisher.snapshot();
+  assert.equal(state.phase, "waiting"); assert.equal(state.readmeRevision, savedReadme.revision);
+  assert.equal((await f.run(["show", `${state.commit}:README.md`])).stdout, savedReadme.content.trim());
+  assert.ok((await f.run(["show", `${state.commit}:dist/content.json`])).stdout.includes("README 与官网同步发布"));
+  assert.equal((await f.run(["show", `${state.commit}:editor-note.txt`])).stdout, "original editor source");
+  assert.equal((await f.run(["diff", "--cached", "--name-only"])).stdout, "editor-note.txt");
+  assert.ok((await f.run(["ls-remote", "origin", "refs/heads/main"])).stdout.startsWith(state.commit));
+  assert.equal(JSON.parse(await readFile(path.join(f.root, ".cache/publish-state.json"), "utf8")).readmeRevision, savedReadme.revision);
+});
+test("README-only publication creates and uploads a README commit", async (t) => {
+  const f = await fixture(t), copy = await f.store.load(), readme = await f.readmeStore.load();
+  const saved = await f.readmeStore.save("# README-only update\n", readme.revision);
+  await f.publisher.start(copy.revision, saved.revision); await f.publisher.waitForIdle();
+  assert.equal(f.publisher.snapshot().phase, "waiting");
+  assert.equal((await f.run(["diff-tree", "--no-commit-id", "--name-only", "-r", f.publisher.snapshot().commit])).stdout, "README.md");
+  assert.equal(f.pushes, 1);
+});
+test("stale README revisions stop publication before a push", async (t) => {
+  const f = await fixture(t), copy = await f.store.load(), readme = await f.readmeStore.load();
+  await f.readmeStore.save("# Preserve the newer README\n", readme.revision);
+  await assert.rejects(f.publisher.start(copy.revision, readme.revision), (error) => error.code === "readme_changed" && error.status === 409);
+  assert.equal(f.pushes, 0);
+  assert.equal((await f.readmeStore.load()).content, "# Preserve the newer README\n");
+});
+test("README changes during preflight stop the snapshot without committing or pushing", async (t) => {
+  const f = await fixture(t), copy = await f.store.load(), readme = await f.readmeStore.load();
+  const head = (await f.run(["rev-parse", "HEAD"])).stdout;
+  const publisher = await createPublisher({ ...f.dependencies, runGit: async (args, options) => {
+    if (args[0] === "ls-remote") await f.readmeStore.save("# Changed during preflight\n", readme.revision);
+    return f.dependencies.runGit(args, options);
+  } });
+  await publisher.start(copy.revision, readme.revision); await publisher.waitForIdle();
+  assert.equal(publisher.snapshot().phase, "error"); assert.match(publisher.snapshot().message, /README/);
+  assert.equal((await f.run(["rev-parse", "HEAD"])).stdout, head); assert.equal(f.pushes, 0);
 });
 test("failed workflow remains a failure and unchanged retry dispatches a new run", async (t) => {
   const f = await fixture(t);

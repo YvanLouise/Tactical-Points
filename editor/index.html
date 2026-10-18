@@ -3,44 +3,57 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>术点牌 · 本地文案编辑</title>
+  <title>术点牌 · 本地内容编辑</title>
   <link rel="icon" href="/assets/favicon.png">
   <link rel="stylesheet" href="/editor/editor.css">
+  <link rel="stylesheet" href="/editor/readme.css">
   <script type="module" src="/editor/editor.js"></script>
 </head>
 <body>
   <header class="editor-header">
-    <div class="editor-brand"><span class="brand-mark" aria-hidden="true">✦</span><div><strong>术点牌</strong><span>本地文案编辑</span></div><span class="local-badge">仅本机</span></div>
+    <div class="editor-brand"><span class="brand-mark" aria-hidden="true">✦</span><div><strong>术点牌</strong><span>官网与 README 编辑</span></div><span class="local-badge">仅本机</span></div>
     <div class="header-actions"><span id="save-state" role="status" aria-live="polite">正在读取文案…</span><button id="undo" disabled title="Ctrl+Z">撤销</button><button id="redo" disabled title="Ctrl+Shift+Z">重做</button><button id="save" class="primary" disabled>保存文案 <kbd>Ctrl S</kbd></button><button id="publish" class="publish-button">发布上线 ↗</button></div>
   </header>
   <div class="mobile-switch" role="group" aria-label="工作区视图"><button id="show-form" aria-pressed="true">编辑文案</button><button id="show-preview" aria-pressed="false">查看预览</button></div>
   <div id="workspace" class="workspace" data-view="form" aria-busy="true">
-    <aside class="sidebar"><p class="eyebrow">CONTENT / 文案分区</p><nav id="section-nav" aria-label="文案分区"></nav><div class="sidebar-bottom"><p>编辑 → 预览 → 保存</p><span>保存只更新本地文件。<br>正式发布时再同步官网。</span><a href="/" target="_blank" rel="noopener">打开本地官网 ↗</a></div></aside>
+    <aside class="sidebar"><p class="eyebrow">CONTENT / 内容分区</p><nav id="section-nav" aria-label="内容分区"></nav><div class="sidebar-bottom"><p>编辑 → 预览 → 保存</p><span>保存只更新本地文件。<br>发布后同步官网与 README。</span><a href="/" target="_blank" rel="noopener">打开本地官网 ↗</a></div></aside>
     <main class="form-pane">
       <div class="section-header"><div><p id="section-number" class="eyebrow">01 / COPY</p><h1 id="section-title">加载中</h1></div><button id="reset-section" class="subtle" disabled>恢复本区原文</button></div>
       <p id="section-note" class="section-note"></p>
       <div id="editor-error" role="alert" hidden></div>
-      <div id="group-filter" class="group-filter" hidden><label for="group-picker" id="group-label">选择内容</label><select id="group-picker"></select></div>
-      <form id="copy-form" autocomplete="off"></form>
+      <div id="copy-document">
+        <div id="group-filter" class="group-filter" hidden><label for="group-picker" id="group-label">选择内容</label><select id="group-picker"></select></div>
+        <form id="copy-form" autocomplete="off"></form>
+      </div>
+      <section id="readme-document" class="readme-document" aria-label="README 编辑区" hidden>
+        <div class="readme-file"><span>README.md</span><a href="https://github.com/YvanLouise/Tactical-Points/blob/main/README.md" target="_blank" rel="noopener noreferrer">在 GitHub 查看 ↗</a></div>
+        <div id="readme-format" class="readme-format" role="group" aria-label="Markdown 格式">
+          <button type="button" data-format="heading" title="插入二级标题">标题</button><button type="button" data-format="bold" title="插入加粗文字">加粗</button><button type="button" data-format="list" title="插入列表">列表</button><button type="button" data-format="link" title="插入链接">链接</button><button type="button" data-format="code" title="插入代码块">代码块</button>
+        </div>
+        <label class="readme-label" for="readme-source">Markdown 源码</label>
+        <textarea id="readme-source" spellcheck="false" autocomplete="off" aria-describedby="readme-hint readme-metrics" disabled></textarea>
+        <div class="readme-meta"><span id="readme-hint">保存到官网仓库的 README.md，发布后更新仓库首页。</span><span id="readme-metrics" role="status"></span></div>
+      </section>
       <div class="form-footer"><span id="field-count"></span><button id="discard" class="subtle" disabled>放弃未保存修改</button><button id="reload" class="subtle">重新加载文件</button></div>
     </main>
-    <section class="preview-pane" aria-label="官网实时预览">
-      <div class="preview-toolbar"><div><strong>实时预览</strong><span id="preview-state" role="status">等待页面就绪</span></div><div class="device-switch" role="group" aria-label="预览尺寸"><button id="desktop" aria-pressed="true">桌面</button><button id="mobile" aria-pressed="false">手机</button></div></div>
+    <section id="preview-pane" class="preview-pane" aria-label="官网实时预览">
+      <div class="preview-toolbar"><div><strong id="preview-title">实时预览</strong><span id="preview-state" role="status">等待页面就绪</span></div><div id="device-switch" class="device-switch" role="group" aria-label="预览尺寸"><button id="desktop" aria-pressed="true">桌面</button><button id="mobile" aria-pressed="false">手机</button></div></div>
       <div id="preview-stage" class="preview-stage"><div id="preview-screen" class="preview-screen"><iframe id="preview" title="官网文案实时预览" src="/?editor-preview=1"></iframe></div></div>
-      <p class="preview-caption">预览支持直接操作 · 修改即时可见，保存后写入文件</p>
+      <article id="readme-preview" class="markdown-body" aria-label="README Markdown 预览" hidden></article>
+      <p id="preview-caption" class="preview-caption">预览支持直接操作 · 修改即时可见，保存后写入文件</p>
     </section>
   </div>
   <dialog id="confirm-dialog"><form method="dialog"><p class="eyebrow">LOCAL EDITOR</p><h2 id="confirm-title">确认操作</h2><p id="confirm-description"></p><div class="dialog-actions"><button value="cancel" autofocus>取消</button><button id="confirm-action" value="confirm" class="primary">确认</button></div></form></dialog>
   <dialog id="publish-dialog" aria-labelledby="publish-title">
-    <div class="publish-heading"><div><p class="eyebrow">PUBLISH / GITHUB PAGES</p><h2 id="publish-title">把新文案，带到线上。</h2></div><button id="publish-close" aria-label="关闭发布面板">✕</button></div>
-    <p class="publish-intro">发布已保存的官网内容，完成后即可通过公开链接访问。游戏文件与本地编辑面板不会部署到线上官网。</p>
+    <div class="publish-heading"><div><p class="eyebrow">PUBLISH / GITHUB</p><h2 id="publish-title">发布官网与 README</h2></div><button id="publish-close" aria-label="关闭发布面板">✕</button></div>
+    <p class="publish-intro">同步已保存的官网内容与 README 到 GitHub。README 更新仓库首页，官网由 Pages 部署；游戏文件与本地编辑面板不会部署到线上官网。</p>
     <div class="publish-target"><span>发布至</span><a href="https://github.com/YvanLouise/Tactical-Points" target="_blank" rel="noopener noreferrer">YvanLouise / Tactical-Points ↗</a><small>main · GitHub Pages</small></div>
     <div class="publish-connection"><span id="publish-account">正在检查 GitHub 登录…</span><button id="publish-login" hidden>登录 GitHub</button></div>
     <div id="publish-status" class="publish-status" role="status" aria-live="polite"><strong id="publish-phase">准备发布</strong><p id="publish-message">正在读取发布状态…</p><span id="publish-commit"></span></div>
-    <p id="publish-unsaved" class="publish-notice" hidden>还有未保存的文案，发布时会先保存当前修改。</p>
+    <p id="publish-unsaved" class="publish-notice" hidden>官网文案或 README 有未保存修改，发布时会先保存两份文档。</p>
     <p id="publish-error" class="publish-error" role="alert" hidden></p>
     <details class="publish-details"><summary>查看发布记录</summary><ol id="publish-log"></ol></details>
-    <div class="publish-links"><a id="publish-open" target="_blank" rel="noopener noreferrer" hidden>打开线上官网 ↗</a><a id="publish-run" target="_blank" rel="noopener noreferrer" hidden>查看 GitHub 部署详情 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/settings/pages" target="_blank" rel="noopener noreferrer">Pages 设置 ↗</a></div>
+    <div class="publish-links"><a id="publish-open" target="_blank" rel="noopener noreferrer" hidden>打开线上官网 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/blob/main/README.md" target="_blank" rel="noopener noreferrer">查看 GitHub README ↗</a><a id="publish-run" target="_blank" rel="noopener noreferrer" hidden>查看 GitHub 部署详情 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/settings/pages" target="_blank" rel="noopener noreferrer">Pages 设置 ↗</a></div>
     <div class="dialog-actions"><button id="publish-refresh">刷新状态</button><button id="publish-start" class="primary" disabled>发布已保存的版本</button></div>
   </dialog>
 </body>

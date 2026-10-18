@@ -1,4 +1,5 @@
 import { setupPublishing } from "./publish.js";
+import { createReadmeEditor } from "./readme.js";
 
 const $ = (selector) => document.querySelector(selector);
 const clone = (value) => structuredClone(value);
@@ -9,16 +10,20 @@ let history = [], future = [], editKey = "", editAt = 0, fieldDefinitions = [];
 const frame = $("#preview");
 const dirtyKeys = () => Object.keys(draft || {}).filter((key) => draft[key] !== saved[key]);
 const currentSection = () => sections.find((section) => section.id === activeSection);
+const editingReadme = () => activeSection === "readme";
 
 function message(text, error = false) {
   $("#editor-error").hidden = !error;
   $("#editor-error").textContent = error ? text : "";
   if (!error && text) $("#save-state").textContent = text;
 }
+const readme = createReadmeEditor({ getToken: () => token, onChange: () => { if (draft && sections) updateStatus(); }, onError: (text) => message(text, Boolean(text)) });
 function preview(focus = false) {
+  if (editingReadme()) return;
   if (ready && draft) frame.contentWindow.postMessage({ type: "copy-preview", content: draft, context: activeContext, focus }, location.origin);
 }
 function sizePreview() {
+  if (editingReadme()) { $("#preview-state").textContent = "Markdown · 本地实时预览"; return; }
   const stage = $("#preview-stage"), screen = $("#preview-screen");
   if (!stage.clientWidth || !stage.clientHeight) return;
   const width = device === "mobile" ? 390 : 1280;
@@ -51,13 +56,16 @@ function fieldError(item) {
 }
 function updateStatus() {
   const keys = dirtyKeys();
-  $("#save").disabled = !keys.length || saving;
-  $("#save").firstChild.textContent = saving ? "保存中… " : "保存文案 ";
-  $("#undo").disabled = !history.length || saving;
-  $("#redo").disabled = !future.length || saving;
-  $("#discard").disabled = !keys.length || saving;
-  $("#reset-section").disabled = saving || !currentSection().groups.some((group) => group.fields.some((item) => draft[item.key] !== original[item.key]));
-  $("#save-state").textContent = saving ? "正在写入本地文件…" : keys.length ? `${keys.length} 处修改 · 未保存` : "已保存到本地";
+  const readmeState = readme.state(), readmeMode = editingReadme(), busy = saving || readmeState.saving;
+  $("#save").disabled = busy || (readmeMode ? !readmeState.dirty || !readmeState.loaded : !keys.length);
+  $("#save").firstChild.textContent = busy ? "保存中… " : readmeMode ? "保存 README " : "保存文案 ";
+  $("#undo").disabled = busy || (readmeMode ? !readmeState.canUndo : !history.length);
+  $("#redo").disabled = busy || (readmeMode ? !readmeState.canRedo : !future.length);
+  $("#discard").disabled = busy || (readmeMode ? !readmeState.dirty : !keys.length);
+  $("#reload").disabled = busy;
+  $("#reset-section").disabled = busy || readmeMode || !currentSection().groups.some((group) => group.fields.some((item) => draft[item.key] !== original[item.key]));
+  $("#save-state").textContent = busy ? "正在写入本地文件…" : readmeMode ? !readmeState.loaded ? "README 尚未加载" : readmeState.dirty ? "README 已修改 · 未保存" : "README 已保存到本地" : keys.length ? `${keys.length} 处修改 · 未保存` : "已保存到本地";
+  $("#nav-readme").classList.toggle("has-changes", readmeState.dirty);
   for (const section of sections) {
     const changed = section.groups.some((group) => group.fields.some((item) => keys.includes(item.key)));
     $(`#nav-${section.id}`).classList.toggle("has-changes", changed);
@@ -89,8 +97,8 @@ function changeField(key, value) {
   message(""); updateStatus(); preview();
 }
 function applyDraft(value) { draft = clone(value); editKey = ""; message(""); updateStatus(); preview(); }
-function undo() { if (!history.length || saving) return; future.push(clone(draft)); applyDraft(history.pop()); }
-function redo() { if (!future.length || saving) return; history.push(clone(draft)); applyDraft(future.pop()); }
+function undo() { if (editingReadme()) { readme.undo(); return; } if (!history.length || saving) return; future.push(clone(draft)); applyDraft(history.pop()); }
+function redo() { if (editingReadme()) { readme.redo(); return; } if (!future.length || saving) return; history.push(clone(draft)); applyDraft(future.pop()); }
 function setContext(group, item) {
   activeContext = { anchor: currentSection().anchor, ...group.context, ...item?.context };
   if (item?.key.includes(".versions.") || item?.key.startsWith("versions.")) activeContext.anchor = "versions";
@@ -146,8 +154,28 @@ function renderForm() {
 }
 function selectSection(id) {
   activeSection = id;
-  const section = currentSection();
+  const readmeMode = editingReadme();
+  $("#workspace").dataset.document = readmeMode ? "readme" : "copy";
+  $("#copy-document").hidden = readmeMode;
+  $("#readme-document").hidden = !readmeMode;
+  $("#reset-section").hidden = readmeMode;
+  $("#preview-stage").hidden = readmeMode;
+  $("#readme-preview").hidden = !readmeMode;
+  $("#device-switch").hidden = readmeMode;
+  $("#preview-pane").setAttribute("aria-label", readmeMode ? "README 实时预览" : "官网实时预览");
+  $("#preview-title").textContent = readmeMode ? "README 预览" : "实时预览";
+  $("#preview-caption").textContent = readmeMode ? "支持常用 Markdown、表格和任务列表 · 原始 HTML 显示为文本，最终排版以 GitHub 为准" : "预览支持直接操作 · 修改即时可见，保存后写入文件";
+  $("#show-form").textContent = readmeMode ? "编辑 README" : "编辑文案";
+  $("#show-preview").textContent = readmeMode ? "README 预览" : "查看预览";
   for (const button of $("#section-nav").children) button.setAttribute("aria-current", String(button.id === `nav-${id}`));
+  if (readmeMode) {
+    $("#section-title").textContent = "GitHub README";
+    $("#section-number").textContent = "08 / README";
+    $("#section-note").textContent = "编辑仓库首页的项目介绍、使用说明与链接。草稿在本机预览，保存后点击“发布上线”同步到 GitHub。";
+    $("#field-count").textContent = "README.md · UTF-8 · 独立保存与撤销历史";
+    $(".form-pane").scrollTop = 0; updateStatus(); sizePreview(); return;
+  }
+  const section = currentSection();
   $("#section-title").textContent = section.label;
   $("#section-number").textContent = `${String(sections.indexOf(section) + 1).padStart(2, "0")} / COPY`;
   $("#section-note").textContent = section.note;
@@ -155,7 +183,7 @@ function selectSection(id) {
   renderForm();
   const selected = section.groups.find((group) => group.label === $("#group-picker").value);
   activeContext = { anchor: section.anchor, ...selected?.context };
-  preview(true);
+  preview(true); sizePreview();
 }
 $("#group-picker").addEventListener("change", (event) => {
   activeGroup[activeSection] = event.target.value;
@@ -176,10 +204,11 @@ $("#reset-section").addEventListener("click", async () => {
   message(""); updateStatus(); preview();
 });
 $("#discard").addEventListener("click", async () => {
-  if (!await confirmAction("放弃未保存修改？", "所有分区将回到上次保存的内容。你仍可以用撤销找回本次草稿。", "放弃修改")) return;
+  if (!await confirmAction("放弃未保存修改？", editingReadme() ? "README 将回到上次保存的内容，官网文案草稿保留。你仍可以撤销找回本次修改。" : "官网文案各分区将回到上次保存的内容，README 草稿保留。你仍可以撤销找回本次修改。", "放弃修改")) return;
+  if (editingReadme()) { readme.discard(); return; }
   checkpoint(); applyDraft(saved);
 });
-async function save() {
+async function saveCopy() {
   if (saving) return false;
   if (!dirtyKeys().length) return true;
   const invalid = fieldDefinitions.find((item) => fieldError(item));
@@ -200,6 +229,12 @@ async function save() {
   } catch (error) { message(error.message, true); return false; }
   finally { saving = false; editKey = ""; updateStatus(); }
 }
+async function save() { return editingReadme() ? readme.save() : saveCopy(); }
+async function saveAll() {
+  if (!await saveCopy()) return false;
+  if (!await readme.save()) { selectSection("readme"); return false; }
+  return true;
+}
 async function load() {
   try {
     const response = await fetch("/api/editor/content");
@@ -214,13 +249,17 @@ async function load() {
       button.append(element("span", String(index + 1).padStart(2, "0"), "nav-number"), element("span", section.label), element("span", "", "nav-dot"));
       button.addEventListener("click", () => selectSection(section.id)); $("#section-nav").append(button);
     }
+    const readmeButton = element("button"); readmeButton.id = "nav-readme";
+    readmeButton.append(element("span", "08", "nav-number"), element("span", "GitHub README"), element("span", "", "nav-dot"));
+    readmeButton.addEventListener("click", () => selectSection("readme")); $("#section-nav").append(readmeButton);
     message(""); selectSection(activeSection); $("#workspace").setAttribute("aria-busy", "false");
   } catch (error) { message(`读取失败：${error.message} 请保持本地服务运行后，点击“重新加载文件”。`, true); }
 }
 $("#save").addEventListener("click", save); $("#undo").addEventListener("click", undo); $("#redo").addEventListener("click", redo);
 $("#reload").addEventListener("click", async () => {
-  if (dirtyKeys().length && !await confirmAction("重新读取本地文件？", "未保存的草稿将被本地文件替换。请先复制需要保留的文字。", "重新加载")) return;
-  await load();
+  if ((editingReadme() ? readme.state().dirty : dirtyKeys().length) && !await confirmAction("重新读取本地文件？", "当前文档未保存的草稿将被本地文件替换。请先复制需要保留的文字。", "重新加载")) return;
+  if (editingReadme()) await readme.load();
+  else await load();
 });
 $("#copy-form").addEventListener("submit", (event) => { event.preventDefault(); save(); });
 document.addEventListener("keydown", (event) => {
@@ -229,7 +268,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
   if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
 });
-window.addEventListener("beforeunload", (event) => { if (dirtyKeys().length) { event.preventDefault(); event.returnValue = ""; } });
+window.addEventListener("beforeunload", (event) => { if (dirtyKeys().length || readme.state().dirty) { event.preventDefault(); event.returnValue = ""; } });
 for (const id of ["desktop", "mobile"]) {
   $(`#${id}`).setAttribute("aria-pressed", String(device === id));
   $(`#${id}`).addEventListener("click", () => {
@@ -244,4 +283,5 @@ for (const id of ["form", "preview"]) $(`#show-${id}`).addEventListener("click",
   sizePreview();
 });
 await load();
-setupPublishing({ getRevision: () => revision, getToken: () => token, hasUnsavedChanges: () => dirtyKeys().length > 0, save });
+await readme.load();
+setupPublishing({ getRevision: () => revision, getReadmeRevision: () => readme.state().revision, getToken: () => token, hasUnsavedChanges: () => dirtyKeys().length > 0 || readme.state().dirty, save: saveAll });

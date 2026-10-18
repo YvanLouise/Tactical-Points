@@ -1,0 +1,60 @@
+@media (min-width: 901px) {
+  .workspace[data-document=readme] { grid-template-columns: 180px minmax(360px, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+}
+.workspace[data-document=readme] > .form-pane, .workspace[data-document=readme] > .preview-pane { min-height: 0; }
+.readme-document { margin-bottom: 26px; }
+.readme-file { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-block: 1px solid var(--rule); }
+.readme-file > span { font: 12px Consolas, monospace; color: var(--sage); }
+.readme-file a { font-size: 10px; color: var(--muted); text-decoration: none; }
+.readme-file a:hover { color: var(--ink); text-decoration: underline; }
+.readme-format { display: flex; flex-wrap: wrap; gap: 5px; padding: 13px 0; }
+.readme-format button { padding: 6px 10px; font-size: 11px; }
+.readme-label { display: block; margin: 7px 0 10px; font-size: 11px; color: var(--muted); }
+#readme-source {
+  display: block; width: 100%; height: max(360px, calc(100dvh - 408px)); min-height: 280px;
+  padding: 17px; resize: vertical; border: 1px solid var(--rule); border-radius: 6px;
+  background: #fffefa; font: 13px/1.9 Consolas, "Microsoft YaHei", monospace; tab-size: 2;
+}
+#readme-source:focus { outline: none; border-color: var(--sage); box-shadow: 0 0 0 3px #727f6513; }
+#readme-source[aria-invalid=true] { border-color: var(--red); }
+.readme-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 10px; line-height: 1.8; color: var(--muted); }
+#readme-metrics { white-space: nowrap; margin-left: auto; }
+#readme-metrics.is-invalid { color: var(--red); }
+.markdown-body {
+  flex: 1; min-height: 0; overflow: auto; overflow-wrap: anywhere; scrollbar-gutter: stable;
+  margin: 22px 22px 0; padding: 28px 30px; background: #fffefa; border: 1px solid var(--rule);
+  border-radius: 6px; font: 14px/1.85 "Microsoft YaHei", system-ui, sans-serif; color: var(--ink);
+}
+.markdown-body > :first-child { margin-top: 0; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+  font-family: inherit; font-weight: 600; line-height: 1.5; letter-spacing: 0; margin: 28px 0 14px;
+}
+.markdown-body h1 { font-size: 25px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.markdown-body h2 { font-size: 21px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+.markdown-body h3 { font-size: 18px; }
+.markdown-body h4, .markdown-body h5, .markdown-body h6 { font-size: 15px; }
+.markdown-body p { margin: 0 0 16px; }
+.markdown-body a { color: #4e6841; text-underline-offset: 3px; }
+.markdown-body img { display: block; max-width: 100%; max-height: 420px; margin: 16px 0; object-fit: contain; }
+.markdown-body code { font: 12px/1.8 Consolas, monospace; background: #e5e7dc80; border-radius: 4px; padding: 2px 5px; overflow-wrap: anywhere; }
+.markdown-body pre { padding: 16px; overflow: auto; border: 1px solid var(--rule); border-radius: 6px; background: #f0f1e9; }
+.markdown-body pre code { padding: 0; background: transparent; white-space: pre; overflow-wrap: normal; }
+.markdown-body ul, .markdown-body ol { padding-left: 25px; margin: 0 0 16px; }
+.markdown-body li { margin: 4px 0; }
+.markdown-body li > input { margin: 0 8px 0 0; accent-color: var(--sage); }
+.markdown-body li > ul, .markdown-body li > ol { margin-block: 8px; }
+.markdown-body blockquote { margin: 16px 0; padding: 3px 0 3px 17px; border-left: 3px solid #b9c1ae; color: var(--muted); }
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
+.markdown-body hr { border: 0; border-top: 1px solid var(--rule); margin: 24px 0; }
+.markdown-table { overflow: auto; margin-bottom: 20px; }
+.markdown-body table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--rule); padding: 8px 12px; text-align: left; }
+.markdown-body th { background: var(--sage-paper); }
+.markdown-empty { color: var(--muted); font-size: 13px; }
+@media (max-width: 1050px) and (min-width: 901px) {
+  .workspace[data-document=readme] { grid-template-columns: 150px minmax(330px, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .markdown-body { margin: 12px 12px 0; padding: 22px; font-size: 13px; }
+  #readme-source { height: max(360px, calc(100dvh - 438px)); padding: 13px; font-size: 12px; }
+}

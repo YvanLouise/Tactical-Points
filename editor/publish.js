@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const phases = { idle: "准备发布", checking: "检查发布条件", building: "准备官网内容", pushing: "上传到 GitHub", waiting: "等待部署", deploying: "GitHub 正在部署", success: "官网已上线", error: "发布未完成" };
 
-export function setupPublishing({ getRevision, getToken, hasUnsavedChanges, save }) {
+export function setupPublishing({ getRevision, getReadmeRevision, getToken, hasUnsavedChanges, save }) {
   const dialog = $("#publish-dialog");
   let current = null, polling = null, requesting = false, submitting = false;
   function error(message) { $("#publish-error").textContent = message || ""; $("#publish-error").hidden = !message; }
@@ -17,9 +17,9 @@ export function setupPublishing({ getRevision, getToken, hasUnsavedChanges, save
     $("#publish-login").disabled = connection.signingIn || submitting || current.busy;
     $("#publish-start").disabled = requesting || submitting || current.busy || !connection.authenticated;
     $("#publish-start").textContent = current.busy ? "发布中…" : hasUnsavedChanges() ? "保存并发布" : current.phase === "error" ? "重试发布" : "发布已保存的版本";
-    const savedAfterStart = current.revision && current.revision !== getRevision();
+    const savedAfterStart = (current.revision && current.revision !== getRevision()) || (current.commit && getReadmeRevision() && current.readmeRevision !== getReadmeRevision());
     $("#publish-unsaved").hidden = !hasUnsavedChanges() && !savedAfterStart;
-    $("#publish-unsaved").textContent = hasUnsavedChanges() ? "还有未保存的文案，发布时会先保存当前修改。" : "当前保存的文案与本次发布版本不同，需要再次发布才会在线上生效。";
+    $("#publish-unsaved").textContent = hasUnsavedChanges() ? "官网文案或 README 有未保存修改，发布时会先保存两份文档。" : "当前保存的内容与本次发布版本不同，需要再次发布才会同步到 GitHub。";
     $("#publish-commit").textContent = current.commit ? `版本 ${current.commit.slice(0, 7)}` : "首次发布会创建官网站点";
     $("#publish-open").hidden = current.phase !== "success";
     if (current.phase === "success") $("#publish-open").href = current.siteUrl;
@@ -60,8 +60,8 @@ export function setupPublishing({ getRevision, getToken, hasUnsavedChanges, save
     if (submitting || current?.busy) return;
     submitting = true; render(); error("");
     try {
-      if (hasUnsavedChanges() && !await save()) { dialog.close(); return; }
-      current = await api("/api/editor/publish", { revision: getRevision() }); render();
+      if (!await save()) { dialog.close(); return; }
+      current = await api("/api/editor/publish", { revision: getRevision(), readmeRevision: getReadmeRevision() }); render();
     } catch (failure) { error(failure.message); }
     finally { submitting = false; render(); }
   });

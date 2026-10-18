@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { sections } from "./content/schema.mjs";
 import { createContentStore } from "./content/store.mjs";
+import { createReadmeStore } from "./content/readme-store.mjs";
 import { createPublisher } from "./deploy/publisher.mjs";
 import { PublishError } from "./deploy/github.mjs";
 
@@ -14,10 +15,11 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 
 export async function createLocalServer({ root = projectRoot, port = Number(process.env.PORT || 4173), publisherFactory = createPublisher } = {}) {
   const store = createContentStore(root);
+  const readmeStore = createReadmeStore(root);
   await store.build((await store.load()).content);
   const original = JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8"));
   const token = randomBytes(32).toString("hex");
-  const publisher = await publisherFactory({ root, store });
+  const publisher = await publisherFactory({ root, store, readmeStore });
   const server = createServer(async (request, response) => {
     const sendJson = (status, value) => {
       response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }).end(JSON.stringify(value));
@@ -41,10 +43,13 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         catch { return sendJson(400, { error: "JSON 格式不正确。" }); }
         if (pathname.endsWith("login")) return sendJson(202, publisher.signIn());
         if (!payload || typeof payload.revision !== "string" || !/^[a-f0-9]{64}$/.test(payload.revision)) return sendJson(400, { error: "请先保存文案，再发布已保存的版本。" });
-        return sendJson(202, await publisher.start(payload.revision));
+        if (payload.readmeRevision !== undefined && (typeof payload.readmeRevision !== "string" || !/^[a-f0-9]{64}$/.test(payload.readmeRevision))) return sendJson(400, { error: "请先读取并保存 README，再发布。" });
+        return sendJson(202, await publisher.start(payload.revision, payload.readmeRevision));
       }
-      if (pathname === "/api/editor/content") {
-        if (request.method === "GET") return sendJson(200, { ...await store.load(), original, sections, token });
+      if (["/api/editor/content", "/api/editor/readme"].includes(pathname)) {
+        const readme = pathname.endsWith("/readme");
+        const documentStore = readme ? readmeStore : store;
+        if (request.method === "GET") return sendJson(200, readme ? await readmeStore.load() : { ...await store.load(), original, sections, token });
         if (request.method !== "PUT") { response.setHeader("Allow", "GET, PUT"); return sendJson(405, { error: "Method not allowed" }); }
         if (request.headers.origin !== origin || request.headers["x-editor-token"] !== token) return sendJson(403, { error: "编辑凭据已失效，请重新加载面板。" });
         if (request.headers["content-type"]?.split(";")[0] !== "application/json") return sendJson(415, { error: "需要 JSON 请求。" });
@@ -52,14 +57,14 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         const chunks = [];
         for await (const chunk of request) {
           bytes += chunk.length;
-          if (bytes > 256 * 1024) return sendJson(413, { error: "文案文件过大。" });
+          if (bytes > (readme ? 1024 : 256) * 1024) return sendJson(413, { error: "文件过大。" });
           chunks.push(chunk);
         }
         let payload;
         try { payload = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
         catch { return sendJson(400, { error: "JSON 格式不正确。" }); }
         if (!payload || typeof payload !== "object") return sendJson(400, { error: "请求格式不正确。" });
-        const result = await store.save(payload.content, payload.revision);
+        const result = await documentStore.save(payload.content, payload.revision);
         return sendJson(result.status, result);
       }
       if (!["GET", "HEAD"].includes(request.method)) { response.setHeader("Allow", "GET, HEAD"); return sendJson(405, { error: "Method not allowed" }); }
@@ -75,7 +80,7 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
       response.writeHead(200, { "Content-Type": types[path.extname(filename)] || "application/octet-stream", "Content-Length": contents.length, "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff" });
       response.end(request.method === "HEAD" ? undefined : contents);
     } catch (error) {
-      if (error instanceof PublishError || error.code === "content_changed") sendJson(error.status || 400, { error: error.message });
+      if (error instanceof PublishError || ["content_changed", "readme_changed", "readme_unavailable"].includes(error.code)) sendJson(error.status || 400, { error: error.message });
       else if (["ENOENT", "ENOTDIR", "EISDIR"].includes(error.code) || error instanceof URIError) sendJson(404, { error: "Not found" });
       else { console.error("Local editor:", error.message); sendJson(500, { error: "文件操作失败，请检查终端中的错误；本次修改尚未保存。" }); }
     }
