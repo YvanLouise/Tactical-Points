@@ -8,12 +8,12 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{site.shareTitle}}">
   <meta property="og:description" content="{{site.shareDescription}}">
-  <meta property="og:image" content="https://yvanlouise.github.io/Tactical-Points/assets/screens/kingdom.png">
+  <meta property="og:image" content="{{image.share}}">
   <meta property="og:url" content="https://yvanlouise.github.io/Tactical-Points/">
   <link rel="canonical" href="https://yvanlouise.github.io/Tactical-Points/">
-  <link rel="icon" href="./assets/favicon.png" type="image/png">
+  <link rel="icon" href="{{image.favicon}}" data-image-slot="favicon">
   <link rel="preload" href="./assets/fonts/ZCOOLKuaiLe-Regular.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="preload" href="./assets/hero.png" as="image" fetchpriority="high">
+  <link rel="preload" href="{{image.hero}}" as="image" fetchpriority="high">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./motion.css">
   <script type="module" src="./app.js"></script>
@@ -49,7 +49,7 @@
         <div class="hero-actions"><a class="button button-dark" href="#modes"><span data-copy="hero.primaryButton">{{hero.primaryButton}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a class="text-link" href="#gallery"><span data-copy="hero.secondaryButton">{{hero.secondaryButton}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div>
         <p class="hero-note"><span data-copy="hero.note">{{hero.note}}</span></p>
       </div>
-      <div class="hero-art"><img src="./assets/hero.png" width="1358" height="1159" fetchpriority="high" alt="{{hero.imageAlt}}" data-copy-alt="hero.imageAlt"></div>
+      <div class="hero-art"><img src="{{image.hero}}" width="{{image.heroWidth}}" height="{{image.heroHeight}}" fetchpriority="high" alt="{{hero.imageAlt}}" data-copy-alt="hero.imageAlt" data-image-slot="hero"></div>
     </section>
     <div class="scroll-note wrap"><a href="#modes"><svg class="icon"><use href="#arrow-down"/></svg><span data-copy="hero.scroll">{{hero.scroll}}</span></a><span class="margin-scribble" aria-hidden="true">/ / /</span></div>
 
@@ -83,7 +83,7 @@
       <div id="gallery-thumbnails" class="gallery-thumbnails" aria-label="选择实机截图"></div>
     </section>
 
-    <section id="faq" class="faq wrap" aria-labelledby="faq-title"><div class="faq-heading"><h2 id="faq-title"><span data-copy="faq.heading">{{faq.heading}}</span></h2><img src="./assets/cat.svg" width="150" height="100" loading="lazy" alt=""></div><div class="faq-list"><details open><summary><span data-copy="faq.download.question">{{faq.download.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p id="download-answer"><span data-copy="faq.download.answer">{{faq.download.answer}}</span></p></details><details><summary><span data-copy="faq.multiplayer.question">{{faq.multiplayer.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.multiplayer.answer">{{faq.multiplayer.answer}}</span></p></details><details><summary><span data-copy="faq.kingdom.question">{{faq.kingdom.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.kingdom.answer">{{faq.kingdom.answer}}</span></p></details></div></section>
+    <section id="faq" class="faq wrap" aria-labelledby="faq-title"><div class="faq-heading"><h2 id="faq-title"><span data-copy="faq.heading">{{faq.heading}}</span></h2><img src="{{image.faq}}" width="150" height="100" loading="lazy" alt="" data-image-slot="faq"></div><div class="faq-list"><details open><summary><span data-copy="faq.download.question">{{faq.download.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p id="download-answer"><span data-copy="faq.download.answer">{{faq.download.answer}}</span></p></details><details><summary><span data-copy="faq.multiplayer.question">{{faq.multiplayer.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.multiplayer.answer">{{faq.multiplayer.answer}}</span></p></details><details><summary><span data-copy="faq.kingdom.question">{{faq.kingdom.question}}</span><svg class="icon"><use href="#plus"/></svg></summary><p><span data-copy="faq.kingdom.answer">{{faq.kingdom.answer}}</span></p></details></div></section>
 
     <section class="development wrap" id="development" aria-labelledby="development-title"><div class="closing-rule"><svg><use href="#spark"/></svg></div><h2 id="development-title"><span data-copy="release.heading">{{release.heading}}</span></h2><p id="development-message"><span data-copy="release.message">{{release.message}}</span></p><span class="development-status"><span></span><span data-copy="release.status">{{release.status}}</span></span><div class="release-links" id="release-links" hidden><a id="download-link" class="button button-dark" hidden><span data-copy="release.downloadLabel">{{release.downloadLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a id="community-link" class="text-link" hidden><span data-copy="release.communityLabel">{{release.communityLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div></section>
   </main>

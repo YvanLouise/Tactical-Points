@@ -2,21 +2,22 @@ import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { atomicWrite } from "../content/store.mjs";
 import { createReadmeStore } from "../content/readme-store.mjs";
+import { createImageStore } from "../content/image-store.mjs";
 import { GitHubClient, PublishError, git, readCredential, loginGitHub } from "./github.mjs";
 import { TARGET } from "./target.mjs";
 
 const activePhases = ["checking", "building", "pushing", "waiting", "deploying"];
 const validSha = (value) => /^[a-f0-9]{40}$/.test(value || "");
-const publicError = (error) => error instanceof PublishError || ["content_changed", "readme_changed", "readme_unavailable"].includes(error.code) ? error.message : "本地发布操作失败。请检查 Git 状态、网络和仓库写入权限后重试。";
+const publicError = (error) => error instanceof PublishError || ["content_changed", "readme_changed", "readme_unavailable", "images_changed"].includes(error.code) ? error.message : "本地发布操作失败。请检查 Git 状态、网络和仓库写入权限后重试。";
 const safeSiteUrl = (value) => { try { const url = new URL(value); return url.protocol === "https:" && !url.username && !url.password ? url.href : TARGET.siteUrl; } catch { return TARGET.siteUrl; } };
 
-export async function createPublisher({ root, store, readmeStore = createReadmeStore(root), runGit = (args, options) => git(root, args, options), getClient = async () => new GitHubClient(await readCredential(root)), login = () => loginGitHub(root), clock = () => Date.now() }) {
+export async function createPublisher({ root, store, readmeStore = createReadmeStore(root), imageStore = createImageStore(root), runGit = (args, options) => git(root, args, options), getClient = async () => new GitHubClient(await readCredential(root)), login = () => loginGitHub(root), clock = () => Date.now() }) {
   const stateFile = path.join(root, ".cache/publish-state.json");
-  let state = { phase: "idle", message: "尚未发布", commit: null, revision: null, readmeRevision: null, startedAt: null, afterRunId: 0, updatedAt: null, runUrl: null, siteUrl: TARGET.siteUrl, logs: [] };
+  let state = { phase: "idle", message: "尚未发布", commit: null, revision: null, readmeRevision: null, imageRevision: null, startedAt: null, afterRunId: 0, updatedAt: null, runUrl: null, siteUrl: TARGET.siteUrl, logs: [] };
   try {
     const saved = JSON.parse(await readFile(stateFile, "utf8"));
     if (validSha(saved.commit)) {
-      state = { ...state, commit: saved.commit, revision: saved.revision, readmeRevision: saved.readmeRevision || null, startedAt: saved.startedAt, afterRunId: Number(saved.afterRunId) || 0, phase: "waiting", message: "正在检查上次发布结果。" };
+      state = { ...state, commit: saved.commit, revision: saved.revision, readmeRevision: saved.readmeRevision || null, imageRevision: saved.imageRevision || null, startedAt: saved.startedAt, afterRunId: Number(saved.afterRunId) || 0, phase: "waiting", message: "正在检查上次发布结果。" };
     }
   } catch { /* The first launch has no publication state. */ }
   let task = null, starting = false, loginTask = null, client = null, identity = null, connectionAt = 0, refreshAt = 0, refreshing = null;
@@ -26,8 +27,8 @@ export async function createPublisher({ root, store, readmeStore = createReadmeS
     state = { ...state, ...extra, phase, message, updatedAt: new Date(clock()).toISOString(), logs: [...state.logs.slice(-23), { time: new Date(clock()).toISOString(), message }] };
     await mkdir(path.dirname(stateFile), { recursive: true });
     // Persist only public job metadata; credentials stay in the system credential manager.
-    const { commit, revision, readmeRevision, startedAt, afterRunId } = state;
-    await atomicWrite(stateFile, JSON.stringify({ commit, revision, readmeRevision, startedAt, afterRunId }) + "\n");
+    const { commit, revision, readmeRevision, imageRevision, startedAt, afterRunId } = state;
+    await atomicWrite(stateFile, JSON.stringify({ commit, revision, readmeRevision, imageRevision, startedAt, afterRunId }) + "\n");
   }
   async function connect(force = false) {
     if (!force && connectionAt && clock() - connectionAt < 15000) return client;
@@ -92,7 +93,7 @@ export async function createPublisher({ root, store, readmeStore = createReadmeS
     }
     return remoteSha;
   }
-  async function perform(expectedRevision, expectedReadmeRevision) {
+  async function perform(expectedRevision, expectedReadmeRevision, expectedImageRevision) {
     const api = await connect(true);
     if (!api) throw new PublishError(connection.message, 401);
     const remoteSha = await verifyRepository(api);
@@ -108,7 +109,8 @@ export async function createPublisher({ root, store, readmeStore = createReadmeS
         if (!validSha(head)) throw new PublishError("无法读取本地提交版本。", 500);
         return head;
       };
-      return expectedReadmeRevision ? readmeStore.withSnapshot(expectedReadmeRevision, capture) : capture();
+      const captureImages = () => imageStore.withSnapshot(expectedImageRevision, capture);
+      return expectedReadmeRevision ? readmeStore.withSnapshot(expectedReadmeRevision, captureImages) : captureImages();
     });
     await transition("pushing", expectedReadmeRevision ? "正在上传官网与 README 到 GitHub…" : "正在上传官网内容到 GitHub…", { commit: null });
     const pushArgs = ["push", "origin", `${sha}:refs/heads/${TARGET.branch}`];
@@ -129,7 +131,7 @@ export async function createPublisher({ root, store, readmeStore = createReadmeS
     }
     await transition("waiting", "已提交到 GitHub，等待 Pages 部署完成…");
   }
-  async function start(expectedRevision, expectedReadmeRevision) {
+  async function start(expectedRevision, expectedReadmeRevision, expectedImageRevision) {
     if (starting || task) throw new PublishError("已有发布任务正在执行，请等待当前任务结束。", 409, "publish_busy");
     starting = true;
     try {
@@ -137,9 +139,10 @@ export async function createPublisher({ root, store, readmeStore = createReadmeS
       if (task || activePhases.includes(state.phase)) throw new PublishError("已有发布任务正在执行，请等待当前任务结束。", 409, "publish_busy");
       if ((await store.load()).revision !== expectedRevision) throw new PublishError("文案文件已变化，请重新加载后再发布。", 409, "content_changed");
       if (expectedReadmeRevision && (await readmeStore.load()).revision !== expectedReadmeRevision) throw new PublishError("README 文件已变化，请重新加载后再发布。", 409, "readme_changed");
+      if (expectedImageRevision && (await imageStore.load()).revision !== expectedImageRevision) throw new PublishError("图片文件已变化，请重新加载后再发布。", 409, "images_changed");
       state.logs = [];
-      await transition("checking", "正在检查登录状态和仓库版本…", { commit: null, revision: expectedRevision, readmeRevision: expectedReadmeRevision || null, afterRunId: 0, runUrl: null, startedAt: new Date(clock()).toISOString() });
-      task = perform(expectedRevision, expectedReadmeRevision).catch(async (error) => { await transition("error", publicError(error)); }).finally(() => { task = null; });
+      await transition("checking", "正在检查登录状态和仓库版本…", { commit: null, revision: expectedRevision, readmeRevision: expectedReadmeRevision || null, imageRevision: expectedImageRevision || null, afterRunId: 0, runUrl: null, startedAt: new Date(clock()).toISOString() });
+      task = perform(expectedRevision, expectedReadmeRevision, expectedImageRevision).catch(async (error) => { await transition("error", publicError(error)); }).finally(() => { task = null; });
       return snapshot();
     } finally { starting = false; }
   }

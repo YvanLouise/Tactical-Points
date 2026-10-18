@@ -7,6 +7,7 @@
   <link rel="icon" href="/assets/favicon.png">
   <link rel="stylesheet" href="/editor/editor.css">
   <link rel="stylesheet" href="/editor/readme.css">
+  <link rel="stylesheet" href="/editor/images.css">
   <script type="module" src="/editor/editor.js"></script>
 </head>
 <body>
@@ -16,7 +17,7 @@
   </header>
   <div class="mobile-switch" role="group" aria-label="工作区视图"><button id="show-form" aria-pressed="true">编辑文案</button><button id="show-preview" aria-pressed="false">查看预览</button></div>
   <div id="workspace" class="workspace" data-view="form" aria-busy="true">
-    <aside class="sidebar"><p class="eyebrow">CONTENT / 内容分区</p><nav id="section-nav" aria-label="内容分区"></nav><div class="sidebar-bottom"><p>编辑 → 预览 → 保存</p><span>保存只更新本地文件。<br>发布后同步官网与 README。</span><a href="/" target="_blank" rel="noopener">打开本地官网 ↗</a></div></aside>
+    <aside class="sidebar"><p class="eyebrow">CONTENT / 内容分区</p><nav id="section-nav" aria-label="内容分区"></nav><div class="sidebar-bottom"><p>编辑 → 预览 → 保存</p><span>保存只更新本地文件。<br>发布后同步官网图片、文案与 README。</span><a href="/" target="_blank" rel="noopener">打开本地官网 ↗</a></div></aside>
     <main class="form-pane">
       <div class="section-header"><div><p id="section-number" class="eyebrow">01 / COPY</p><h1 id="section-title">加载中</h1></div><button id="reset-section" class="subtle" disabled>恢复本区原文</button></div>
       <p id="section-note" class="section-note"></p>
@@ -25,6 +26,19 @@
         <div id="group-filter" class="group-filter" hidden><label for="group-picker" id="group-label">选择内容</label><select id="group-picker"></select></div>
         <form id="copy-form" autocomplete="off"></form>
       </div>
+      <section id="image-document" class="image-document" aria-label="图片素材编辑区" hidden>
+        <div class="group-filter image-category"><label for="image-category">图片分类</label><select id="image-category"></select></div>
+        <div id="image-list" class="image-list" role="group" aria-label="选择要更换的图片"></div>
+        <section class="image-detail" aria-labelledby="image-title">
+          <div class="image-detail-heading"><h2 id="image-title">选择图片</h2><a id="image-open" target="_blank" rel="noopener">查看大图 ↗</a></div>
+          <div class="image-actions"><button id="image-choose" type="button" class="primary" disabled>选择本地图片</button><button id="image-restore" type="button" disabled>恢复默认图片</button></div>
+          <div id="image-dropzone" class="image-dropzone"><img id="image-current-preview" class="image-current-preview" alt=""><p>也可以将一张图片拖到这里</p></div>
+          <input id="image-file" type="file" accept="image/png,image/jpeg,image/webp" aria-label="选择替换图片文件" hidden>
+          <div class="image-meta"><p id="image-dimensions"></p><p id="image-origin"></p></div>
+          <p id="image-progress" class="image-progress" role="status" aria-live="polite"></p>
+          <p class="image-help">支持 PNG、JPG、WebP，单张不超过 12 MB。保留原始画质与透明背景。选择后可在右侧预览，点击“保存图片”写入本地，再通过“发布上线”同步到官网。默认素材始终保留。</p>
+        </section>
+      </section>
       <section id="readme-document" class="readme-document" aria-label="README 编辑区" hidden>
         <div class="readme-file"><span>README.md</span><a href="https://github.com/YvanLouise/Tactical-Points/blob/main/README.md" target="_blank" rel="noopener noreferrer">在 GitHub 查看 ↗</a></div>
         <div id="readme-format" class="readme-format" role="group" aria-label="Markdown 格式">
@@ -46,11 +60,11 @@
   <dialog id="confirm-dialog"><form method="dialog"><p class="eyebrow">LOCAL EDITOR</p><h2 id="confirm-title">确认操作</h2><p id="confirm-description"></p><div class="dialog-actions"><button value="cancel" autofocus>取消</button><button id="confirm-action" value="confirm" class="primary">确认</button></div></form></dialog>
   <dialog id="publish-dialog" aria-labelledby="publish-title">
     <div class="publish-heading"><div><p class="eyebrow">PUBLISH / GITHUB</p><h2 id="publish-title">发布官网与 README</h2></div><button id="publish-close" aria-label="关闭发布面板">✕</button></div>
-    <p class="publish-intro">同步已保存的官网内容与 README 到 GitHub。README 更新仓库首页，官网由 Pages 部署；游戏文件与本地编辑面板不会部署到线上官网。</p>
+    <p class="publish-intro">同步已保存的官网图片、文案与 README 到 GitHub。README 更新仓库首页，官网由 Pages 部署；游戏文件与本地编辑面板不会部署到线上官网。</p>
     <div class="publish-target"><span>发布至</span><a href="https://github.com/YvanLouise/Tactical-Points" target="_blank" rel="noopener noreferrer">YvanLouise / Tactical-Points ↗</a><small>main · GitHub Pages</small></div>
     <div class="publish-connection"><span id="publish-account">正在检查 GitHub 登录…</span><button id="publish-login" hidden>登录 GitHub</button></div>
     <div id="publish-status" class="publish-status" role="status" aria-live="polite"><strong id="publish-phase">准备发布</strong><p id="publish-message">正在读取发布状态…</p><span id="publish-commit"></span></div>
-    <p id="publish-unsaved" class="publish-notice" hidden>官网文案或 README 有未保存修改，发布时会先保存两份文档。</p>
+    <p id="publish-unsaved" class="publish-notice" hidden>图片、文案或 README 有未保存修改，发布时会先保存所有内容。</p>
     <p id="publish-error" class="publish-error" role="alert" hidden></p>
     <details class="publish-details"><summary>查看发布记录</summary><ol id="publish-log"></ol></details>
     <div class="publish-links"><a id="publish-open" target="_blank" rel="noopener noreferrer" hidden>打开线上官网 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/blob/main/README.md" target="_blank" rel="noopener noreferrer">查看 GitHub README ↗</a><a id="publish-run" target="_blank" rel="noopener noreferrer" hidden>查看 GitHub 部署详情 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/settings/pages" target="_blank" rel="noopener noreferrer">Pages 设置 ↗</a></div>

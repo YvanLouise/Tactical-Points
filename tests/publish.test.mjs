@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, copyFile, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, readFile, writeFile, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { GitHubClient, git } from "../deploy/github.mjs";
 import { TARGET } from "../deploy/target.mjs";
 import { createContentStore } from "../content/store.mjs";
 import { createReadmeStore } from "../content/readme-store.mjs";
+import { createImageStore } from "../content/image-store.mjs";
 
 const source = fileURLToPath(new URL("../", import.meta.url));
 async function fixture(t) {
@@ -27,6 +28,7 @@ async function fixture(t) {
   await run(["add", "."]); await run(["commit", "-m", "Initial fixture"]);
   const store = createContentStore(root);
   const readmeStore = createReadmeStore(root);
+  const imageStore = createImageStore(root);
   let now = Date.now(), workflow = null, pages = { html_url: TARGET.siteUrl, build_type: "workflow" };
   let dispatches = 0, pushes = 0, failedPushes = 0;
   const api = {
@@ -43,10 +45,10 @@ async function fixture(t) {
     }
     return run(args, { ...options, token: undefined });
   };
-  const dependencies = { root, store, readmeStore, runGit, getClient: async () => api, clock: () => now };
+  const dependencies = { root, store, readmeStore, imageStore, runGit, getClient: async () => api, clock: () => now };
   const publisher = await createPublisher(dependencies);
   t.after(async () => { await publisher.waitForIdle(); await rm(folder, { recursive: true, force: true }); });
-  return { root, remote, store, readmeStore, run, publisher, dependencies,
+  return { root, remote, store, readmeStore, imageStore, run, publisher, dependencies,
     advance: () => { now += 16000; }, setWorkflow: (value) => { workflow = value; }, setPages: (value) => { pages = value; },
     get dispatches() { return dispatches; }, get pushes() { return pushes; },
     failNextPush: () => { failedPushes = 1; },
@@ -108,6 +110,62 @@ test("README-only publication creates and uploads a README commit", async (t) =>
   assert.equal(f.publisher.snapshot().phase, "waiting");
   assert.equal((await f.run(["diff-tree", "--no-commit-id", "--name-only", "-r", f.publisher.snapshot().commit])).stdout, "README.md");
   assert.equal(f.pushes, 1);
+});
+
+test("image replacements and their manifest are published in the same immutable commit", async (t) => {
+  const f = await fixture(t), before = await f.imageStore.load();
+  const png = await readFile(path.join(source, "dist/assets/favicon.png"));
+  const saved = await f.imageStore.save("hero", png, "image/png", before.revision);
+  const current = await f.store.load();
+  await f.publisher.start(current.revision, undefined, saved.revision); await f.publisher.waitForIdle();
+  const state = f.publisher.snapshot(); assert.equal(state.phase, "waiting"); assert.equal(state.imageRevision, saved.revision);
+  const committed = JSON.parse((await f.run(["show", `${state.commit}:dist/images.json`])).stdout);
+  assert.equal(committed.hero.src, saved.config.hero.src);
+  assert.ok((await f.run(["ls-tree", "-r", "--name-only", state.commit])).stdout.includes(`dist/${committed.hero.src.slice(2)}`));
+  assert.ok((await f.run(["show", `${state.commit}:dist/index.html`])).stdout.includes(`src="${committed.hero.src}"`));
+  assert.equal(JSON.parse(await readFile(path.join(f.root, ".cache/publish-state.json"), "utf8")).imageRevision, saved.revision);
+});
+
+test("stale image revisions stop publication before pushing", async (t) => {
+  const f = await fixture(t), before = await f.imageStore.load();
+  await f.imageStore.save("hero", await readFile(path.join(source, "dist/assets/favicon.png")), "image/png", before.revision);
+  await assert.rejects(f.publisher.start((await f.store.load()).revision, undefined, before.revision), /图片文件已变化/);
+  assert.equal(f.pushes, 0);
+});
+
+test("restored or discarded uploads are kept privately and excluded from publication", async (t) => {
+  const f = await fixture(t), initial = await f.imageStore.load();
+  const png = await readFile(path.join(source, "dist/assets/favicon.png"));
+  const saved = await f.imageStore.save("hero", png, "image/png", initial.revision);
+  const restored = await f.imageStore.save("hero", null, undefined, saved.revision);
+  await f.publisher.start((await f.store.load()).revision, undefined, restored.revision); await f.publisher.waitForIdle();
+  const state = f.publisher.snapshot(); assert.equal(state.phase, "waiting");
+  const tree = (await f.run(["ls-tree", "-r", "--name-only", state.commit])).stdout;
+  assert.ok(!tree.includes("assets/uploads/")); assert.ok(!tree.includes(".cache/"));
+  const backups = await readdir(path.join(f.root, ".cache/image-history")); assert.equal(backups.length, 1);
+  assert.deepEqual(await readFile(path.join(f.root, ".cache/image-history", backups[0])), png);
+});
+
+test("images changed during publication preflight stop the snapshot before a push", async (t) => {
+  const f = await fixture(t), initial = await f.imageStore.load(), api = await f.dependencies.getClient();
+  const publisher = await createPublisher({ ...f.dependencies, getClient: async () => ({ ...api, repository: async () => {
+    await f.imageStore.save("hero", await readFile(path.join(source, "dist/assets/favicon.png")), "image/png", initial.revision);
+    return api.repository();
+  } }) });
+  await publisher.start((await f.store.load()).revision, undefined, initial.revision); await publisher.waitForIdle();
+  assert.equal(publisher.snapshot().phase, "error"); assert.match(publisher.snapshot().message, /图片文件已变化/); assert.equal(f.pushes, 0);
+});
+
+test("image saves wait until the publication snapshot has finished", async (t) => {
+  const f = await fixture(t), initial = await f.imageStore.load();
+  let release, captured;
+  const ready = new Promise((resolve) => { captured = resolve; });
+  const snapshot = f.imageStore.withSnapshot(initial.revision, async () => { captured(); await new Promise((resolve) => { release = resolve; }); });
+  await ready;
+  let finished = false;
+  const saving = f.imageStore.save("hero", await readFile(path.join(source, "dist/assets/favicon.png")), "image/png", initial.revision).then((result) => { finished = true; return result; });
+  await new Promise((resolve) => setTimeout(resolve, 25)); assert.equal(finished, false);
+  release(); await snapshot; assert.equal((await saving).status, 200);
 });
 test("stale README revisions stop publication before a push", async (t) => {
   const f = await fixture(t), copy = await f.store.load(), readme = await f.readmeStore.load();

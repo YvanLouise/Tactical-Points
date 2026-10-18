@@ -1,5 +1,6 @@
 import { setupPublishing } from "./publish.js";
 import { createReadmeEditor } from "./readme.js";
+import { createImageEditor } from "./images.js";
 
 const $ = (selector) => document.querySelector(selector);
 const clone = (value) => structuredClone(value);
@@ -11,6 +12,7 @@ const frame = $("#preview");
 const dirtyKeys = () => Object.keys(draft || {}).filter((key) => draft[key] !== saved[key]);
 const currentSection = () => sections.find((section) => section.id === activeSection);
 const editingReadme = () => activeSection === "readme";
+const editingImages = () => activeSection === "images";
 
 function message(text, error = false) {
   $("#editor-error").hidden = !error;
@@ -18,9 +20,10 @@ function message(text, error = false) {
   if (!error && text) $("#save-state").textContent = text;
 }
 const readme = createReadmeEditor({ getToken: () => token, onChange: () => { if (draft && sections) updateStatus(); }, onError: (text) => message(text, Boolean(text)) });
+const images = createImageEditor({ getToken: () => token, onChange: () => { if (draft && sections) { updateStatus(); preview(); } }, onError: (text) => message(text, Boolean(text)), onSelect: (context) => { if (editingImages()) { activeContext = context; preview(true); } } });
 function preview(focus = false) {
   if (editingReadme()) return;
-  if (ready && draft) frame.contentWindow.postMessage({ type: "copy-preview", content: draft, context: activeContext, focus }, location.origin);
+  if (ready && draft) frame.contentWindow.postMessage({ type: "copy-preview", content: draft, images: images.state().loaded ? images.overrides() : undefined, context: activeContext, focus }, location.origin);
 }
 function sizePreview() {
   if (editingReadme()) { $("#preview-state").textContent = "Markdown · 本地实时预览"; return; }
@@ -56,16 +59,18 @@ function fieldError(item) {
 }
 function updateStatus() {
   const keys = dirtyKeys();
-  const readmeState = readme.state(), readmeMode = editingReadme(), busy = saving || readmeState.saving;
-  $("#save").disabled = busy || (readmeMode ? !readmeState.dirty || !readmeState.loaded : !keys.length);
-  $("#save").firstChild.textContent = busy ? "保存中… " : readmeMode ? "保存 README " : "保存文案 ";
-  $("#undo").disabled = busy || (readmeMode ? !readmeState.canUndo : !history.length);
-  $("#redo").disabled = busy || (readmeMode ? !readmeState.canRedo : !future.length);
-  $("#discard").disabled = busy || (readmeMode ? !readmeState.dirty : !keys.length);
+  const readmeState = readme.state(), imageState = images.state(), readmeMode = editingReadme(), imageMode = editingImages(), busy = saving || readmeState.saving || imageState.saving || imageState.processing;
+  $("#save").disabled = busy || (readmeMode ? !readmeState.dirty || !readmeState.loaded : imageMode ? !imageState.dirty || !imageState.loaded : !keys.length);
+  $("#save").firstChild.textContent = busy ? "处理中… " : readmeMode ? "保存 README " : imageMode ? "保存图片 " : "保存文案 ";
+  $("#undo").disabled = busy || (readmeMode ? !readmeState.canUndo : imageMode ? !imageState.canUndo : !history.length);
+  $("#redo").disabled = busy || (readmeMode ? !readmeState.canRedo : imageMode ? !imageState.canRedo : !future.length);
+  $("#discard").disabled = busy || (readmeMode ? !readmeState.dirty : imageMode ? !imageState.dirty : !keys.length);
   $("#reload").disabled = busy;
-  $("#reset-section").disabled = busy || readmeMode || !currentSection().groups.some((group) => group.fields.some((item) => draft[item.key] !== original[item.key]));
-  $("#save-state").textContent = busy ? "正在写入本地文件…" : readmeMode ? !readmeState.loaded ? "README 尚未加载" : readmeState.dirty ? "README 已修改 · 未保存" : "README 已保存到本地" : keys.length ? `${keys.length} 处修改 · 未保存` : "已保存到本地";
+  $("#reset-section").disabled = busy || readmeMode || imageMode || !currentSection().groups.some((group) => group.fields.some((item) => draft[item.key] !== original[item.key]));
+  $("#save-state").textContent = busy ? imageState.processing ? "正在读取图片…" : "正在写入本地文件…" : readmeMode ? !readmeState.loaded ? "README 尚未加载" : readmeState.dirty ? "README 已修改 · 未保存" : "README 已保存到本地" : imageMode ? !imageState.loaded ? "图片尚未加载" : imageState.dirty ? `${imageState.count} 张图片修改 · 未保存` : "图片已保存到本地" : keys.length ? `${keys.length} 处修改 · 未保存` : "已保存到本地";
   $("#nav-readme").classList.toggle("has-changes", readmeState.dirty);
+  $("#nav-images").classList.toggle("has-changes", imageState.dirty);
+  if (imageMode) $("#field-count").textContent = "18 个图片位置 · 默认素材可随时恢复";
   for (const section of sections) {
     const changed = section.groups.some((group) => group.fields.some((item) => keys.includes(item.key)));
     $(`#nav-${section.id}`).classList.toggle("has-changes", changed);
@@ -98,8 +103,8 @@ function changeField(key, value) {
   message(""); updateStatus(); preview();
 }
 function applyDraft(value) { draft = clone(value); editKey = ""; message(""); updateStatus(); preview(); }
-function undo() { if (editingReadme()) { readme.undo(); return; } if (!history.length || saving) return; future.push(clone(draft)); applyDraft(history.pop()); }
-function redo() { if (editingReadme()) { readme.redo(); return; } if (!future.length || saving) return; history.push(clone(draft)); applyDraft(future.pop()); }
+function undo() { if (editingReadme()) { readme.undo(); return; } if (editingImages()) { images.undo(); return; } if (!history.length || saving) return; future.push(clone(draft)); applyDraft(history.pop()); }
+function redo() { if (editingReadme()) { readme.redo(); return; } if (editingImages()) { images.redo(); return; } if (!future.length || saving) return; history.push(clone(draft)); applyDraft(future.pop()); }
 function setContext(group, item) {
   activeContext = { anchor: currentSection().anchor, ...group.context, ...item?.context };
   if (item?.key.includes(".versions.") || item?.key.startsWith("versions.")) activeContext.anchor = "versions";
@@ -159,20 +164,26 @@ function renderForm() {
 }
 function selectSection(id) {
   activeSection = id;
-  const readmeMode = editingReadme();
-  $("#workspace").dataset.document = readmeMode ? "readme" : "copy";
-  $("#copy-document").hidden = readmeMode;
+  const readmeMode = editingReadme(), imageMode = editingImages();
+  $("#workspace").dataset.document = readmeMode ? "readme" : imageMode ? "images" : "copy";
+  $("#copy-document").hidden = readmeMode || imageMode;
+  $("#image-document").hidden = !imageMode;
   $("#readme-document").hidden = !readmeMode;
-  $("#reset-section").hidden = readmeMode;
+  $("#reset-section").hidden = readmeMode || imageMode;
   $("#preview-stage").hidden = readmeMode;
   $("#readme-preview").hidden = !readmeMode;
   $("#device-switch").hidden = readmeMode;
   $("#preview-pane").setAttribute("aria-label", readmeMode ? "README 实时预览" : "官网实时预览");
   $("#preview-title").textContent = readmeMode ? "README 预览" : "实时预览";
   $("#preview-caption").textContent = readmeMode ? "支持常用 Markdown、表格和任务列表 · 原始 HTML 显示为文本，最终排版以 GitHub 为准" : "预览支持直接操作 · 修改即时可见，保存后写入文件";
-  $("#show-form").textContent = readmeMode ? "编辑 README" : "编辑文案";
+  $("#show-form").textContent = readmeMode ? "编辑 README" : imageMode ? "更换图片" : "编辑文案";
   $("#show-preview").textContent = readmeMode ? "README 预览" : "查看预览";
   for (const button of $("#section-nav").children) button.setAttribute("aria-current", String(button.id === `nav-${id}`));
+  if (imageMode) {
+    $("#section-title").textContent = "图片素材"; $("#section-number").textContent = "09 / IMAGES";
+    $("#section-note").textContent = "选择要更换的位置，上传或拖入新图片。支持预览、撤销和恢复默认，保存后可随官网一起发布。";
+    $(".form-pane").scrollTop = 0; images.focus(); updateStatus(); sizePreview(); return;
+  }
   if (readmeMode) {
     $("#section-title").textContent = "GitHub README";
     $("#section-number").textContent = "08 / README";
@@ -202,6 +213,7 @@ function confirmAction(title, description, label) {
   return new Promise((resolve) => dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true }));
 }
 $("#reset-section").addEventListener("click", async () => {
+  if (editingImages() || editingReadme()) return;
   const section = currentSection();
   if (!await confirmAction(`恢复“${section.label}”原文？`, "本区全部字段将恢复为面板初次建立时的文案。操作后仍需保存，也可以撤销。", "恢复本区原文")) return;
   checkpoint();
@@ -209,7 +221,8 @@ $("#reset-section").addEventListener("click", async () => {
   message(""); updateStatus(); preview();
 });
 $("#discard").addEventListener("click", async () => {
-  if (!await confirmAction("放弃未保存修改？", editingReadme() ? "README 将回到上次保存的内容，官网文案草稿保留。你仍可以撤销找回本次修改。" : "官网文案各分区将回到上次保存的内容，README 草稿保留。你仍可以撤销找回本次修改。", "放弃修改")) return;
+  if (!await confirmAction("放弃未保存修改？", editingImages() ? "图片将回到上次保存的状态，文案与 README 草稿保留。你仍可以撤销找回本次修改。" : editingReadme() ? "README 将回到上次保存的内容，官网文案草稿保留。你仍可以撤销找回本次修改。" : "官网文案各分区将回到上次保存的内容，图片与 README 草稿保留。你仍可以撤销找回本次修改。", "放弃修改")) return;
+  if (editingImages()) { images.discard(); return; }
   if (editingReadme()) { readme.discard(); return; }
   checkpoint(); applyDraft(saved);
 });
@@ -234,10 +247,11 @@ async function saveCopy() {
   } catch (error) { message(error.message, true); return false; }
   finally { saving = false; editKey = ""; updateStatus(); }
 }
-async function save() { return editingReadme() ? readme.save() : saveCopy(); }
+async function save() { return editingReadme() ? readme.save() : editingImages() ? images.save() : saveCopy(); }
 async function saveAll() {
   if (!await saveCopy()) return false;
   if (!await readme.save()) { selectSection("readme"); return false; }
+  if (!await images.save()) { selectSection("images"); return false; }
   return true;
 }
 async function load() {
@@ -257,13 +271,17 @@ async function load() {
     const readmeButton = element("button"); readmeButton.id = "nav-readme";
     readmeButton.append(element("span", "08", "nav-number"), element("span", "GitHub README"), element("span", "", "nav-dot"));
     readmeButton.addEventListener("click", () => selectSection("readme")); $("#section-nav").append(readmeButton);
+    const imageButton = element("button"); imageButton.id = "nav-images";
+    imageButton.append(element("span", "09", "nav-number"), element("span", "图片素材"), element("span", "", "nav-dot"));
+    imageButton.addEventListener("click", () => selectSection("images")); $("#section-nav").append(imageButton);
     message(""); selectSection(activeSection); $("#workspace").setAttribute("aria-busy", "false");
   } catch (error) { message(`读取失败：${error.message} 请保持本地服务运行后，点击“重新加载文件”。`, true); }
 }
 $("#save").addEventListener("click", save); $("#undo").addEventListener("click", undo); $("#redo").addEventListener("click", redo);
 $("#reload").addEventListener("click", async () => {
-  if ((editingReadme() ? readme.state().dirty : dirtyKeys().length) && !await confirmAction("重新读取本地文件？", "当前文档未保存的草稿将被本地文件替换。请先复制需要保留的文字。", "重新加载")) return;
-  if (editingReadme()) await readme.load();
+  if ((editingReadme() ? readme.state().dirty : editingImages() ? images.state().dirty : dirtyKeys().length) && !await confirmAction("重新读取本地文件？", "当前分区未保存的草稿将被本地文件替换，其他类型的草稿保留。", "重新加载")) return;
+  if (editingImages()) await images.load();
+  else if (editingReadme()) await readme.load();
   else await load();
 });
 $("#copy-form").addEventListener("submit", (event) => { event.preventDefault(); save(); });
@@ -273,7 +291,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
   if (event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
 });
-window.addEventListener("beforeunload", (event) => { if (dirtyKeys().length || readme.state().dirty) { event.preventDefault(); event.returnValue = ""; } });
+window.addEventListener("beforeunload", (event) => { if (dirtyKeys().length || readme.state().dirty || images.state().dirty || images.state().processing || images.state().saving) { event.preventDefault(); event.returnValue = ""; } });
 for (const id of ["desktop", "mobile"]) {
   $(`#${id}`).setAttribute("aria-pressed", String(device === id));
   $(`#${id}`).addEventListener("click", () => {
@@ -289,4 +307,5 @@ for (const id of ["form", "preview"]) $(`#show-${id}`).addEventListener("click",
 });
 await load();
 await readme.load();
-setupPublishing({ getRevision: () => revision, getReadmeRevision: () => readme.state().revision, getToken: () => token, hasUnsavedChanges: () => dirtyKeys().length > 0 || readme.state().dirty, save: saveAll });
+await images.load();
+setupPublishing({ getRevision: () => revision, getReadmeRevision: () => readme.state().revision, getImageRevision: () => images.state().revision, getToken: () => token, hasUnsavedChanges: () => dirtyKeys().length > 0 || readme.state().dirty || images.state().dirty || images.state().processing, save: saveAll });

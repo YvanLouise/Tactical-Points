@@ -1,9 +1,10 @@
 import { CHARACTERS as CHARACTER_ASSETS, SCREENSHOTS as SCREENSHOT_ASSETS } from "./data.js";
 import { revealContent, setupIndicators, swapImage, syncIndicator } from "./motion.js";
+import { imageFor } from "./media.js";
 
-const response = await fetch(new URL("./content.json", import.meta.url), { cache: "no-cache" });
-if (!response.ok) throw new Error("Unable to load website content");
-let copy = await response.json();
+const [response, imageResponse] = await Promise.all(["./content.json", "./images.json"].map((file) => fetch(new URL(file, import.meta.url), { cache: "no-cache" })));
+if (!response.ok || !imageResponse.ok) throw new Error("Unable to load website content");
+let copy = await response.json(), imageConfig = await imageResponse.json();
 let MODES, CHARACTERS, SCREENSHOTS;
 
 function prepareContent(content) {
@@ -100,7 +101,7 @@ function renderMode(direction = 1) {
   optionalText($("#mode-description"), mode.description);
   optionalText($("#diagram-caption"), mode.diagram);
   optionalText($("#mode-caption"), mode.caption);
-  swapImage($("#mode-image"), `./assets/screens/${mode.screenshot}.png`, { alt: `${state.mode === "tactical" ? "术点" : "王国"}模式实机画面`, direction });
+  swapImage($("#mode-image"), imageFor(`screen-${mode.screenshot}`, imageConfig).src, { alt: `${state.mode === "tactical" ? "术点" : "王国"}模式实机画面`, direction });
   $("#mode-steps").replaceChildren(...mode.steps.filter(hasText).map((text, index) => {
     const li = document.createElement("li");
     const number = document.createElement("span");
@@ -124,7 +125,7 @@ function renderSkill() {
 function renderCharacter(direction = 1) {
   const role = CHARACTERS.find((character) => character.id === state.character);
   selectTabs($("#character-picker"), "character", state.character);
-  swapImage($("#character-image"), `./assets/characters/${role.id}.png`, { alt: hasText(role.name) ? `${role.name}角色原画` : "角色原画", direction });
+  swapImage($("#character-image"), imageFor(`character-${role.id}`, imageConfig).src, { alt: hasText(role.name) ? `${role.name}角色原画` : "角色原画", direction });
   optionalText($("#character-name"), role.name);
   optionalText($("#character-english"), role.english);
   optionalText($("#character-quote"), hasText(role.quote) ? `「${role.quote}」` : "");
@@ -150,7 +151,8 @@ function buildCharacters() {
     portrait.style.setProperty("--crop-left", `${-100 * x / width}%`);
     portrait.style.setProperty("--crop-top", `${-100 * y / height}%`);
     const image = document.createElement("img");
-    image.src = `./assets/characters/${role.id}.png`;
+    image.dataset.imageSlot = `character-${role.id}`;
+    image.src = imageFor(image.dataset.imageSlot, imageConfig).src;
     image.alt = "";
     image.loading = "lazy";
     portrait.append(image);
@@ -176,7 +178,7 @@ function showScreenshot(index, animate = false) {
   const direction = Math.sign(index - previous) || 1;
   state.screenshot = (index + SCREENSHOTS.length) % SCREENSHOTS.length;
   const shot = SCREENSHOTS[state.screenshot];
-  const source = `./assets/screens/${shot.id}.png`;
+  const source = imageFor(`screen-${shot.id}`, imageConfig).src;
   swapImage($("#gallery-image"), source, { alt: shot.alt, direction });
   optionalText($("#gallery-caption"), shot.caption);
   $("#gallery-open").setAttribute("aria-label", hasText(shot.title) ? `放大查看：${shot.title}` : "放大查看当前实机截图");
@@ -190,7 +192,7 @@ function showScreenshot(index, animate = false) {
 
 function renderDialogImage(direction = 1, animate = false) {
   const shot = SCREENSHOTS[state.screenshot];
-  swapImage($("#dialog-image"), `./assets/screens/${shot.id}.png`, { alt: shot.alt, direction });
+  swapImage($("#dialog-image"), imageFor(`screen-${shot.id}`, imageConfig).src, { alt: shot.alt, direction });
   optionalText($("#dialog-caption"), shot.caption);
   if (hasText(shot.caption)) { dialog.setAttribute("aria-labelledby", "dialog-caption"); dialog.removeAttribute("aria-label"); }
   else { dialog.removeAttribute("aria-labelledby"); dialog.setAttribute("aria-label", "实机截图预览"); }
@@ -214,7 +216,8 @@ function buildGallery() {
     button.className = "gallery-thumbnail";
     button.setAttribute("aria-label", `查看${shot.title}实机截图`);
     const image = document.createElement("img");
-    image.src = `./assets/screens/${shot.id}.png`;
+    image.dataset.imageSlot = `screen-${shot.id}`;
+    image.src = imageFor(image.dataset.imageSlot, imageConfig).src;
     image.alt = "";
     image.loading = "lazy";
     image.width = 320;
@@ -315,6 +318,20 @@ function setupReleaseLinks() {
   $(".development-status").lastChild.textContent = copy[ready ? "release.readyStatus" : "release.status"];
 }
 
+function applyImages() {
+  for (const element of document.querySelectorAll("[data-image-slot]")) {
+    const image = imageFor(element.dataset.imageSlot, imageConfig);
+    if (element.tagName === "LINK") element.href = image.src;
+    else {
+      swapImage(element, image.src, { alt: element.alt });
+      element.width = image.width; element.height = image.height;
+      element.classList.toggle("is-custom-image", image.custom);
+      if (element.parentElement.classList.contains("character-portrait")) element.parentElement.classList.toggle("is-custom-image", image.custom);
+    }
+  }
+  $("meta[property='og:image']").content = new URL(imageFor("screen-kingdom", imageConfig).src, document.baseURI).href;
+}
+
 function applyContent(content) {
   prepareContent(content);
   for (const element of document.querySelectorAll("[data-copy]")) {
@@ -322,6 +339,7 @@ function applyContent(content) {
     if (typeof text === "string") element.textContent = hasText(text) ? text : "";
   }
   for (const element of document.querySelectorAll("[data-copy-alt]")) element.alt = copy[element.dataset.copyAlt];
+  applyImages();
   document.title = copy["site.title"];
   $("meta[name='description']").content = copy["site.description"];
   $("meta[property='og:title']").content = copy["site.shareTitle"];
@@ -350,8 +368,9 @@ function setupLocalPreview() {
   });
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== "copy-preview") return;
-    const { content, context = {}, focus = false } = event.data;
+    const { content, images, context = {}, focus = false } = event.data;
     if (!content || Object.keys(copy).some((key) => typeof content[key] !== "string")) return;
+    if (images && typeof images === "object") imageConfig = images;
     if (["tactical", "kingdom"].includes(context.mode)) state.mode = context.mode;
     if (["standard", "advanced", "expert", "full"].includes(context.version)) state.version = context.version;
     if (CHARACTER_ASSETS.some((role) => role.id === context.character)) state.character = context.character;
