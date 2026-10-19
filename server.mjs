@@ -21,7 +21,7 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 async function editorIdentity(root) {
   const canonical = await realpath(root);
   const workspace = createHash("sha256").update(process.platform === "win32" ? canonical.toLowerCase() : canonical).digest("hex");
-  return { app: editorApp, protocol: 2, workspace };
+  return { app: editorApp, protocol: 3, workspace };
 }
 
 export async function createLocalServer({ root = projectRoot, port = Number(process.env.PORT || 4173), publisherFactory = createPublisher, androidFactory = createAndroidPublisher } = {}) {

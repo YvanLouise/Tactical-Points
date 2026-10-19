@@ -2,7 +2,7 @@ import { CHARACTERS as CHARACTER_ASSETS, SCREENSHOTS as SCREENSHOT_ASSETS } from
 import { revealContent, setupIndicators, swapImage, syncIndicator } from "./motion.js";
 import { imageFor } from "./media.js";
 import { withContentDefaults } from "./content-defaults.js";
-import { applySiteContent, configuredUrl, renderCommunity, setupCommunity, setupNavigation, setupLocalPreview } from "./site.js";
+import { applySiteContent, configuredUrl, renderCommunity, setupCommunity, setupNavigation, setupLocalPreview } from "./site.js?v=20261019-links";
 
 const [response, imageResponse] = await Promise.all(["./content.json", "./images.json"].map((file) => fetch(new URL(file, import.meta.url), { cache: "no-cache" })));
 if (!response.ok || !imageResponse.ok) throw new Error("Unable to load website content");
