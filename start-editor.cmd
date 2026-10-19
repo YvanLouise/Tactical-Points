@@ -6,7 +6,6 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo Starting the local copy editor...
-echo Keep this window open. Press Ctrl+C to stop.
+echo Opening the local copy editor...
 node server.mjs --open-editor
-pause
+if errorlevel 1 pause
