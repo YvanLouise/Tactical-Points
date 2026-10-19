@@ -11,6 +11,7 @@ import { createReadmeStore } from "./content/readme-store.mjs";
 import { createImageStore } from "./content/image-store.mjs";
 import { IMAGE_LIMITS, IMAGE_SLOTS } from "./dist/media.js";
 import { createPublisher } from "./deploy/publisher.mjs";
+import { createAndroidPublisher } from "./deploy/android-release.mjs";
 import { PublishError } from "./deploy/github.mjs";
 
 const projectRoot = fileURLToPath(new URL("./", import.meta.url));
@@ -20,17 +21,17 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 async function editorIdentity(root) {
   const canonical = await realpath(root);
   const workspace = createHash("sha256").update(process.platform === "win32" ? canonical.toLowerCase() : canonical).digest("hex");
-  return { app: editorApp, protocol: 1, workspace };
+  return { app: editorApp, protocol: 2, workspace };
 }
 
-export async function createLocalServer({ root = projectRoot, port = Number(process.env.PORT || 4173), publisherFactory = createPublisher } = {}) {
+export async function createLocalServer({ root = projectRoot, port = Number(process.env.PORT || 4173), publisherFactory = createPublisher, androidFactory = createAndroidPublisher } = {}) {
   const identity = await editorIdentity(root);
   const store = createContentStore(root);
   const readmeStore = createReadmeStore(root);
   const imageStore = createImageStore(root);
   const original = withContentDefaults(JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8")));
   const token = randomBytes(32).toString("hex");
-  let publisher, markReady, markFailed;
+  let publisher, androidPublisher, markReady, markFailed;
   const ready = new Promise((resolve, reject) => { markReady = resolve; markFailed = reject; });
   ready.catch(() => {});
   const server = createServer(async (request, response) => {
@@ -55,6 +56,7 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         if (!IMAGE_SLOTS.some((slot) => slot.id === id)) return sendJson(404, { error: "找不到这个图片位置。" });
         if (!["PUT", "DELETE"].includes(request.method)) { response.setHeader("Allow", "PUT, DELETE"); return sendJson(405, { error: "Method not allowed" }); }
         if (request.headers.origin !== origin || request.headers["x-editor-token"] !== token) return sendJson(403, { error: "编辑凭据已失效，请重新加载面板。" });
+        if (androidPublisher.snapshot().busy) return sendJson(409, { error: "安装包更新期间请等待任务完成后再保存图片。" });
         const expected = request.headers["x-image-revision"], mime = request.headers["content-type"]?.split(";")[0];
         if (typeof expected !== "string" || !/^[a-f0-9]{64}$/.test(expected)) return sendJson(400, { error: "请先读取图片列表，再保存图片。" });
         if (request.method === "PUT" && !["image/png", "image/jpeg", "image/webp"].includes(mime)) return sendJson(415, { error: "请选择 PNG、JPG 或 WebP 图片。" });
@@ -64,8 +66,9 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         const result = await store.withSnapshot(undefined, ({ content }) => imageStore.save(id, request.method === "DELETE" ? null : Buffer.concat(chunks), mime, expected, () => store.build(content)));
         return sendJson(result.status, result);
       }
-      if (["/api/editor/publish", "/api/editor/github/login"].includes(pathname)) {
-        if (request.method === "GET" && pathname === "/api/editor/publish") return sendJson(200, await publisher.inspect());
+      if (["/api/editor/publish", "/api/editor/github/login", "/api/editor/android-release"].includes(pathname)) {
+        const android = pathname === "/api/editor/android-release";
+        if (request.method === "GET" && !pathname.endsWith("login")) return sendJson(200, android ? await androidPublisher.inspect() : await publisher.inspect());
         if (request.method !== "POST") { response.setHeader("Allow", pathname.endsWith("login") ? "POST" : "GET, POST"); return sendJson(405, { error: "Method not allowed" }); }
         if (request.headers.origin !== origin || request.headers["x-editor-token"] !== token) return sendJson(403, { error: "编辑凭据已失效，请重新加载面板。" });
         if (request.headers["content-type"]?.split(";")[0] !== "application/json") return sendJson(415, { error: "需要 JSON 请求。" });
@@ -74,10 +77,18 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         let payload;
         try { payload = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
         catch { return sendJson(400, { error: "JSON 格式不正确。" }); }
-        if (pathname.endsWith("login")) return sendJson(202, publisher.signIn());
+        if (pathname.endsWith("login")) {
+          if (androidPublisher.snapshot().busy) return sendJson(409, { error: "安装包更新期间不能切换 GitHub 账号。" });
+          return sendJson(202, publisher.signIn());
+        }
         if (!payload || typeof payload.revision !== "string" || !/^[a-f0-9]{64}$/.test(payload.revision)) return sendJson(400, { error: "请先保存文案，再发布已保存的版本。" });
         if (payload.readmeRevision !== undefined && (typeof payload.readmeRevision !== "string" || !/^[a-f0-9]{64}$/.test(payload.readmeRevision))) return sendJson(400, { error: "请先读取并保存 README，再发布。" });
         if (payload.imageRevision !== undefined && (typeof payload.imageRevision !== "string" || !/^[a-f0-9]{64}$/.test(payload.imageRevision))) return sendJson(400, { error: "请先读取并保存图片，再发布。" });
+        if (android) {
+          if (payload.retry !== undefined && typeof payload.retry !== "boolean") return sendJson(400, { error: "无效的重试请求。" });
+          return sendJson(202, await androidPublisher.start(payload));
+        }
+        if (androidPublisher.snapshot().busy) return sendJson(409, { error: "安装包正在构建或发布，请等待任务完成。" });
         const revisions = [payload.revision, payload.readmeRevision];
         if (payload.imageRevision !== undefined) revisions.push(payload.imageRevision);
         return sendJson(202, await publisher.start(...revisions));
@@ -88,6 +99,7 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
         if (request.method === "GET") return sendJson(200, readme ? await readmeStore.load() : { ...await store.load(), original, sections, token });
         if (request.method !== "PUT") { response.setHeader("Allow", "GET, PUT"); return sendJson(405, { error: "Method not allowed" }); }
         if (request.headers.origin !== origin || request.headers["x-editor-token"] !== token) return sendJson(403, { error: "编辑凭据已失效，请重新加载面板。" });
+        if (androidPublisher.snapshot().busy) return sendJson(409, { error: "安装包更新期间请等待任务完成后再保存内容。" });
         if (request.headers["content-type"]?.split(";")[0] !== "application/json") return sendJson(415, { error: "需要 JSON 请求。" });
         let bytes = 0;
         const chunks = [];
@@ -125,6 +137,7 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
     // Reserve the port before rebuilding so concurrent launches cannot write the same pages.
     await new Promise((resolve, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", resolve); });
     publisher = await publisherFactory({ root, store, readmeStore, imageStore });
+    androidPublisher = await androidFactory({ root, store, readmeStore, imageStore, publisher });
     await store.build((await store.load()).content);
     markReady();
     return server;

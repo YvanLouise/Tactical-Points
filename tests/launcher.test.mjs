@@ -108,3 +108,15 @@ test("invalid ports fail with a concise error before changing website files", as
   for (const port of [-1, 1.5, 65536, NaN]) await assert.rejects(f.launch(port), /PORT must be an integer/);
   assert.deepEqual(await readFile(path.join(f.root, "dist/index.html")), before);
 });
+
+test("a running editor with an older API protocol is not reused after an upgrade", async (t) => {
+  const f = await fixture(t), first = await f.launch(0);
+  const identity = await fetch(`${first.origin}/api/editor/status`).then(response => response.json());
+  await close(first.server);
+  const old = createServer((request, response) => response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ...identity, protocol: identity.protocol - 1 })));
+  await listen(old); t.after(() => close(old));
+  const upgraded = await f.launch(old.address().port);
+  assert.equal(upgraded.reused, false);
+  assert.notEqual(upgraded.port, old.address().port);
+  assert.equal((await fetch(`${upgraded.origin}/api/editor/status`).then(response => response.json())).protocol, identity.protocol);
+});

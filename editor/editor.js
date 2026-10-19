@@ -1,4 +1,5 @@
 import { setupPublishing } from "./publish.js";
+import { setupAndroidPublishing } from "./android.js";
 import { createReadmeEditor } from "./readme.js";
 import { createImageEditor } from "./images.js";
 import { IMAGE_SLOTS } from "../media.js";
@@ -10,6 +11,7 @@ let activeSection = "home", activeGroup = {}, activeContext = {}, ready = false,
 let device = window.matchMedia("(max-width: 900px)").matches ? "mobile" : "desktop";
 let history = [], future = [], editKey = "", editAt = 0, fieldDefinitions = [];
 let previewPage = "home";
+let androidBusy = false;
 const frame = $("#preview");
 const dirtyKeys = () => Object.keys(draft || {}).filter((key) => draft[key] !== saved[key]);
 const currentSection = () => sections.find((section) => section.id === activeSection);
@@ -73,7 +75,7 @@ function fieldError(item) {
 }
 function updateStatus() {
   const keys = dirtyKeys();
-  const readmeState = readme.state(), imageState = images.state(), readmeMode = editingReadme(), imageMode = editingImages(), busy = saving || readmeState.saving || imageState.saving || imageState.processing;
+  const readmeState = readme.state(), imageState = images.state(), readmeMode = editingReadme(), imageMode = editingImages(), busy = saving || androidBusy || readmeState.saving || imageState.saving || imageState.processing;
   $("#save").disabled = busy || (readmeMode ? !readmeState.dirty || !readmeState.loaded : imageMode ? !imageState.dirty || !imageState.loaded : !keys.length);
   $("#save").firstChild.textContent = busy ? "处理中… " : readmeMode ? "保存 README " : imageMode ? "保存图片 " : "保存文案 ";
   $("#undo").disabled = busy || (readmeMode ? !readmeState.canUndo : imageMode ? !imageState.canUndo : !history.length);
@@ -323,3 +325,16 @@ await load();
 await readme.load();
 await images.load();
 setupPublishing({ getRevision: () => revision, getReadmeRevision: () => readme.state().revision, getImageRevision: () => images.state().revision, getToken: () => token, hasUnsavedChanges: () => dirtyKeys().length > 0 || readme.state().dirty || images.state().dirty || images.state().processing, save: saveAll });
+setupAndroidPublishing({
+  getRevision: () => revision, getReadmeRevision: () => readme.state().revision, getImageRevision: () => images.state().revision, getToken: () => token, save: saveAll,
+  onBusyChange: value => { androidBusy = value; $("#publish").disabled = value; if (draft && sections) updateStatus(); },
+  onContentChange: async () => {
+    const response = await fetch("/api/editor/content");
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "无法读取更新后的下载信息。");
+    const changed = new Set(dirtyKeys());
+    for (const [key, value] of Object.entries(result.content)) if (!changed.has(key)) draft[key] = value;
+    saved = clone(result.content); revision = result.revision;
+    selectSection(activeSection); updateStatus(); preview();
+  },
+});

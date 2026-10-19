@@ -1,7 +1,7 @@
 import { CHARACTERS, SCREENSHOTS } from "./data.js";
 
 const names = ["武士", "学者", "守卫", "冒险家", "特种兵", "魔术师", "巫师", "商人", "铁卫", "困兽", "先知"];
-const screens = [["术点模式", 910, 447], ["王国模式", 1672, 941], ["角色选择", 1280, 720], ["交互教程", 1280, 720]];
+const screens = [["术点模式", 1280, 720], ["王国模式", 1280, 720], ["角色选择", 1280, 720], ["交互教程", 1280, 720]];
 export const IMAGE_LIMITS = { bytes: 12 * 1024 * 1024, edge: 8192, pixels: 32 * 1024 * 1024 };
 export const IMAGE_SLOTS = [
   { id: "hero", label: "首屏插画", group: "首屏与装饰", src: "./assets/hero.png", width: 1358, height: 1159, context: { anchor: "intro" } },

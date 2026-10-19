@@ -7,6 +7,6 @@
     "dev": "node server.mjs",
     "build": "node build.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check server.mjs && node --check dist/app.js && node --check dist/about.js && node --check dist/site.js && node --check dist/content-defaults.js && node --check dist/motion.js && node --check dist/media.js && node --check editor/editor.js && node --check editor/publish.js && node --check editor/readme.js && node --check editor/markdown.js && node --check editor/images.js && node --check deploy/github.mjs && node --check deploy/publisher.mjs && node --check content/schema.mjs && node --check content/store.mjs && node --check content/readme-store.mjs && node --check content/image-config.mjs && node --check content/image-store.mjs"
+    "check": "node --check server.mjs && node --check dist/app.js && node --check dist/about.js && node --check dist/site.js && node --check dist/content-defaults.js && node --check dist/motion.js && node --check dist/media.js && node --check editor/editor.js && node --check editor/publish.js && node --check editor/android.js && node --check editor/readme.js && node --check editor/markdown.js && node --check editor/images.js && node --check deploy/github.mjs && node --check deploy/publisher.mjs && node --check deploy/android-build.mjs && node --check deploy/android-release.mjs && node --check content/schema.mjs && node --check content/store.mjs && node --check content/readme-store.mjs && node --check content/image-config.mjs && node --check content/image-store.mjs"
   }
 }

@@ -13,7 +13,7 @@
 <body>
   <header class="editor-header">
     <div class="editor-brand"><span class="brand-mark" aria-hidden="true">✦</span><div><strong>术点牌</strong><span>官网与 README 编辑</span></div><span class="local-badge">仅本机</span></div>
-    <div class="header-actions"><span id="save-state" role="status" aria-live="polite">正在读取文案…</span><button id="undo" disabled title="Ctrl+Z">撤销</button><button id="redo" disabled title="Ctrl+Shift+Z">重做</button><button id="save" class="primary" disabled>保存文案 <kbd>Ctrl S</kbd></button><button id="publish" class="publish-button">发布上线 ↗</button></div>
+    <div class="header-actions"><span id="save-state" role="status" aria-live="polite">正在读取文案…</span><button id="undo" disabled title="Ctrl+Z">撤销</button><button id="redo" disabled title="Ctrl+Shift+Z">重做</button><button id="save" class="primary" disabled>保存文案 <kbd>Ctrl S</kbd></button><button id="android-open">安卓安装包</button><button id="publish" class="publish-button">发布上线 ↗</button></div>
   </header>
   <div class="mobile-switch" role="group" aria-label="工作区视图"><button id="show-form" aria-pressed="true">编辑文案</button><button id="show-preview" aria-pressed="false">查看预览</button></div>
   <div id="workspace" class="workspace" data-view="form" aria-busy="true">
@@ -69,6 +69,18 @@
     <details class="publish-details"><summary>查看发布记录</summary><ol id="publish-log"></ol></details>
     <div class="publish-links"><a id="publish-open" target="_blank" rel="noopener noreferrer" hidden>打开线上官网 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/blob/main/README.md" target="_blank" rel="noopener noreferrer">查看 GitHub README ↗</a><a id="publish-run" target="_blank" rel="noopener noreferrer" hidden>查看 GitHub 部署详情 ↗</a><a href="https://github.com/YvanLouise/Tactical-Points/settings/pages" target="_blank" rel="noopener noreferrer">Pages 设置 ↗</a></div>
     <div class="dialog-actions"><button id="publish-refresh">刷新状态</button><button id="publish-start" class="primary" disabled>发布已保存的版本</button></div>
+  </dialog>
+  <dialog id="android-dialog" aria-labelledby="android-title">
+    <div class="publish-heading"><div><p class="eyebrow">ANDROID / 安装包</p><h2 id="android-title">更新安卓测试版</h2></div><button id="android-close" aria-label="关闭安装包面板">✕</button></div>
+    <p class="publish-intro">从当前原版源码创建独立安卓副本，构建并校验安装包，上传成功后自动替换官网的下载入口。旧版本继续保留在发布记录中。开始前会保存管理页的修改。</p>
+    <p id="android-environment" class="section-note">正在检查本机构建条件…</p>
+    <div class="publish-connection"><span id="android-account">正在检查 GitHub 登录…</span><button id="android-login">登录 GitHub</button></div>
+    <ol id="android-steps" class="android-steps" aria-label="安装包更新进度"><li>检查环境</li><li>同步源码</li><li>构建校验</li><li>上传安装包</li><li>更新官网</li><li>完成</li></ol>
+    <div class="publish-status" role="status" aria-live="polite"><strong id="android-phase">准备更新</strong><p id="android-message">正在读取状态…</p><span id="android-version">版本号自动递增</span></div>
+    <p id="android-error" class="publish-error" role="alert" hidden></p>
+    <details class="publish-details"><summary>查看构建与发布记录</summary><ol id="android-log"></ol></details>
+    <div class="publish-links"><a id="android-download" target="_blank" rel="noopener noreferrer" hidden>下载本次安装包 ↗</a><a id="android-site" target="_blank" rel="noopener noreferrer" hidden>打开官网 ↗</a><a id="android-run" target="_blank" rel="noopener noreferrer" hidden>查看部署详情 ↗</a></div>
+    <div class="dialog-actions"><button id="android-refresh">刷新状态</button><button id="android-retry" hidden>重试上次发布</button><button id="android-start" class="primary" disabled>打包最新版并更新网站</button></div>
   </dialog>
 </body>
 </html>
