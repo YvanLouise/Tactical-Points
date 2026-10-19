@@ -32,6 +32,10 @@ $templateDestination = Join-Path $editorData 'export_templates/4.7.stable'
 $keyRoot = Join-Path $buildRoot 'keys'
 $apk = Join-Path $apkRoot $ApkFileName
 $utf8 = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = $utf8
+$OutputEncoding = $utf8
+$buildStage = 'prepare'
+$buildExitCode = $null
 
 foreach ($required in @($Godot, "$AndroidSdk/platform-tools/adb.exe", "$JavaHome/bin/java.exe", "$TemplateRoot/android_debug.apk", "$TemplateRoot/android_release.apk")) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
@@ -80,21 +84,35 @@ try {
     $env:GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD = 'android'
 
     Write-Host 'Importing the standalone Android project...'
-    $importLog = Join-Path $verificationRoot 'import-console.log'
-    & $portableGodot --headless --path $projectRoot --import --log-file (Join-Path $verificationRoot 'import.log') *> $importLog
-    if ($LASTEXITCODE -ne 0 -or (Select-String -LiteralPath $importLog -Pattern 'SCRIPT ERROR:|Parse Error:|ERROR:' -Quiet)) {
-        Get-Content -LiteralPath $importLog -Tail 50
-        throw 'Godot import failed. See verification/import-console.log.'
+    $buildStage = 'import'
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $suffix = if ($attempt -eq 1) { '' } else { '-retry' }
+        $importLog = Join-Path $verificationRoot "import$suffix-console.log"
+        & $portableGodot --headless --path $projectRoot --import --log-file (Join-Path $verificationRoot "import$suffix.log") *> $importLog
+        $buildExitCode = $LASTEXITCODE
+        $importError = Select-String -LiteralPath $importLog -Pattern 'SCRIPT ERROR:|Parse Error:|ERROR:' -Quiet
+        if ($buildExitCode -eq 0 -and -not $importError) { break }
+        if ($buildExitCode -lt 0 -and $attempt -eq 1) {
+            Write-Host "Godot resource import crashed (exit $buildExitCode). Retrying once with the existing import cache..."
+            continue
+        }
+        Get-Content -LiteralPath $importLog -Tail 25
+        throw "Godot resource import failed. See verification/import$suffix-console.log."
     }
 
     Write-Host 'Exporting the signed Android test APK...'
+    $buildStage = 'export'
+    $buildExitCode = $null
     $exportLog = Join-Path $verificationRoot 'export-console.log'
     & $portableGodot --headless --path $projectRoot --export-debug 'Android Test' $apk --log-file (Join-Path $verificationRoot 'export.log') *> $exportLog
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $apk) -or (Select-String -LiteralPath $exportLog -Pattern 'SCRIPT ERROR:|Parse Error:|ERROR:' -Quiet)) {
+    $buildExitCode = $LASTEXITCODE
+    if ($buildExitCode -ne 0 -or -not (Test-Path -LiteralPath $apk) -or (Select-String -LiteralPath $exportLog -Pattern 'SCRIPT ERROR:|Parse Error:|ERROR:' -Quiet)) {
         Get-Content -LiteralPath $exportLog -Tail 50
         throw 'Android export failed. See verification/export-console.log.'
     }
 
+    $buildStage = 'signature'
+    $buildExitCode = $null
     $buildTools = Get-ChildItem -LiteralPath "$AndroidSdk/build-tools" -Directory |
         Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
         Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
@@ -131,6 +149,7 @@ try {
     }
 
     Write-Host 'Checking the actual APK resources and navigation...'
+    $buildStage = 'smoke'
     $pack = Join-Path $verificationRoot 'apk-assets.zip'
     $packRoot = Join-Path $verificationRoot 'pack-run'
     $appData = Join-Path $verificationRoot 'user'
@@ -154,7 +173,8 @@ try {
         $env:APPDATA = $appData
         $smokeLog = Join-Path $verificationRoot 'smoke.log'
         & $portableGodot --headless --path $packRoot --main-pack $pack --script (Join-Path $PSScriptRoot 'android-smoke.gd') --audio-driver Dummy *> $smokeLog
-        if ($LASTEXITCODE -ne 0 -or (Select-String -LiteralPath $smokeLog -Pattern 'SCRIPT ERROR:|ERROR:|WARNING:' -Quiet) -or -not (Select-String -LiteralPath $smokeLog -Pattern 'LATEST_ANDROID_SMOKE: PASS' -Quiet)) { throw 'APK navigation check failed. See output/verification/smoke.log.' }
+        $buildExitCode = $LASTEXITCODE
+        if ($buildExitCode -ne 0 -or (Select-String -LiteralPath $smokeLog -Pattern 'SCRIPT ERROR:|ERROR:|WARNING:' -Quiet) -or -not (Select-String -LiteralPath $smokeLog -Pattern 'LATEST_ANDROID_SMOKE: PASS' -Quiet)) { throw 'APK navigation check failed. See output/verification/smoke.log.' }
     } finally { $env:APPDATA = $previousAppData }
 
     $hash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -178,6 +198,10 @@ try {
     Write-Host "APK ready: $apk"
     Write-Host "Size: $([math]::Round((Get-Item -LiteralPath $apk).Length / 1MB, 1)) MiB"
     Write-Host "SHA256: $hash"
+} catch {
+    $failure = @{ stage = $buildStage; message = $_.Exception.Message; exitCode = $buildExitCode }
+    [IO.File]::WriteAllText((Join-Path $apkRoot 'build-error.json'), ($failure | ConvertTo-Json), $utf8)
+    throw
 } finally {
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process') }
 }

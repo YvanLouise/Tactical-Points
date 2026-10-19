@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile, mkdir, realpath, stat, copyFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PublishError } from './github.mjs';
@@ -102,6 +103,7 @@ export async function prepareAndroidSnapshot(gameRoot, jobRoot, version) {
     display: { 'window/stretch/aspect': '"keep"', 'window/handheld/orientation': '4', 'window/size/mode': '3', 'window/frame_pacing/android/enable_frame_pacing': 'true', 'window/frame_pacing/android/swappy_mode': '0' },
     input_devices: { 'pointing/emulate_mouse_from_touch': 'true', 'pointing/emulate_touch_from_mouse': 'false' },
     editor_plugins: { enabled: 'PackedStringArray()' },
+    editor: { 'import/use_multiple_threads': 'false' },
     rendering: { 'renderer/rendering_method': '"gl_compatibility"', 'renderer/rendering_method.mobile': '"gl_compatibility"', 'textures/vram_compression/import_etc2_astc': 'true' },
   };
   for (const [section, fields] of Object.entries(settings)) for (const [key, value] of Object.entries(fields)) config = setGodotSetting(config, section, key, value);
@@ -125,20 +127,36 @@ export async function prepareAndroidSnapshot(gameRoot, jobRoot, version) {
   return { project, ...info };
 }
 
-export async function buildAndroidArtifact({ gameRoot, jobRoot, version, onLine = () => {}, onProcess = () => {} }) {
+export async function buildAndroidArtifact({ gameRoot, jobRoot, version, onLine = () => {}, onProcess = () => {}, spawnProcess = spawn }) {
   const output = path.join(jobRoot, 'output');
   await mkdir(output, { recursive: true });
   const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(here, 'build-android.ps1'), '-WorkspaceRoot', gameRoot, '-ProjectRoot', path.join(jobRoot, 'project'), '-OutputRoot', output, '-Version', version.name, '-VersionCode', String(version.versionCode), '-ApkFileName', version.filename];
   const log = [];
-  await new Promise((resolve, reject) => {
-    const child = spawn('powershell.exe', args, { cwd: gameRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const exitCode = await new Promise((resolve, reject) => {
+    const child = spawnProcess('powershell.exe', args, { cwd: gameRoot, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     onProcess(child.pid);
-    let pending = '';
-    const receive = bytes => { pending += bytes.toString(); const lines = pending.split(/\r?\n/); pending = lines.pop(); for (const line of lines) { log.push(line); if (log.length > 80) log.shift(); onLine(line); } };
-    child.stdout.on('data', receive); child.stderr.on('data', receive);
+    const streams = [];
+    const record = line => { log.push(line); if (log.length > 80) log.shift(); onLine(line); };
+    for (const stream of [child.stdout, child.stderr]) {
+      const state = { decoder: new StringDecoder('utf8'), pending: '' };
+      streams.push(state);
+      stream.on('data', bytes => {
+        state.pending += state.decoder.write(bytes);
+        const lines = state.pending.split(/\r?\n/); state.pending = lines.pop(); lines.forEach(record);
+      });
+    }
     child.once('error', reject);
-    child.once('close', code => { onProcess(null); code === 0 ? resolve() : reject(new PublishError(`安卓构建或校验未通过。${log.filter(Boolean).slice(-6).join(' ').slice(0, 600)}`, 500, 'android_build_failed')); });
+    child.once('close', code => { for (const stream of streams) { const remaining = stream.pending + stream.decoder.end(); if (remaining) record(remaining); } onProcess(null); resolve(code); });
   });
+  await writeFile(path.join(output, 'build-console.log'), log.join('\n') + '\n');
+  if (exitCode !== 0) {
+    const diagnostic = await readFile(path.join(output, 'build-error.json'), 'utf8').then(JSON.parse).catch(() => null);
+    const labels = { import: '资源导入', export: '安装包导出', signature: '签名与版本校验', smoke: '包内导航校验' };
+    const phase = labels[diagnostic?.stage] || '构建或校验';
+    const code = Number.isInteger(diagnostic?.exitCode) && diagnostic.exitCode !== 0 ? `（Godot 退出码 0x${(diagnostic.exitCode >>> 0).toString(16).toUpperCase().padStart(8, '0')}）` : '';
+    const summary = diagnostic?.message ? ` ${diagnostic.message}` : '';
+    throw new PublishError(`安卓${phase}未通过${code}。${summary} 本次任务日志：${path.relative(gameRoot, path.join(output, 'build-console.log')).replaceAll('\\', '/')}`, 500, 'android_build_failed');
+  }
   const info = JSON.parse(await readFile(path.join(output, 'build-info.json'), 'utf8'));
   const apk = path.join(output, version.filename);
   const infoFile = await stat(apk);

@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, copyFile, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createContentStore } from '../content/store.mjs';
 import { createReadmeStore } from '../content/readme-store.mjs';
 import { createImageStore } from '../content/image-store.mjs';
 import { createLocalServer } from '../server.mjs';
-import { nextAndroidVersion, prepareAndroidSnapshot } from '../deploy/android-build.mjs';
+import { nextAndroidVersion, prepareAndroidSnapshot, buildAndroidArtifact } from '../deploy/android-build.mjs';
 import { createAndroidPublisher, uploadAndroidRelease } from '../deploy/android-release.mjs';
 import { PublishError } from '../deploy/github.mjs';
 
@@ -79,6 +81,7 @@ test('source snapshot uses the current original project, preserves startup and l
   const result = await prepareAndroidSnapshot(f.game, path.join(f.game, 'android_test/.build/jobs/snapshot'), nextAndroidVersion(['0.01']));
   const config = await readFile(path.join(result.project, 'project.godot'), 'utf8');
   assert.match(config, /CreatorIntro.tscn/); assert.match(config, /AndroidRuntime=/); assert.match(config, /enabled=PackedStringArray\(\)/);
+  assert.match(config, /import\/use_multiple_threads=false/);
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /version\/code=2000/);
   assert.match(await readFile(path.join(result.project, 'scripts/ui/main_menu.gd'), 'utf8'), /not OS.has_feature\("android"\)/);
   assert.equal(await readFile(path.join(result.project, 'assets/latest.txt'), 'utf8'), 'current original asset');
@@ -94,6 +97,33 @@ test('failed builds preserve the old download and never upload or publish', asyn
   assert.equal((await f.store.load()).content['release.downloadUrl'], f.before.content['release.downloadUrl']);
   assert.equal(f.liveUrl, f.before.content['release.downloadUrl']);
   await assert.rejects(readFile(path.join(f.game, 'android_test/.build/website-release.lock')), { code: 'ENOENT' });
+});
+
+test('native build failures report the failing stage and retain UTF-8 diagnostics without a PowerShell stack', async t => {
+  const f = await fixture(t);
+  const jobRoot = path.join(f.game, 'android_test/.build/website-jobs/failure');
+  const output = path.join(jobRoot, 'output');
+  await mkdir(output, { recursive: true });
+  await writeFile(path.join(output, 'build-error.json'), JSON.stringify({ stage: 'import', message: 'Godot resource import failed. See verification/import-retry-console.log.', exitCode: -1073741819 }));
+  const lines = [];
+  const spawnProcess = (_file, _args, options) => {
+    assert.equal(options.windowsHide, true);
+    const child = new EventEmitter(); child.pid = process.pid; child.stdout = new PassThrough(); child.stderr = new PassThrough();
+    setImmediate(() => {
+      const utf8 = Buffer.from('正在导入字体\n');
+      child.stdout.write(utf8.subarray(0, 2)); child.stdout.write(utf8.subarray(2));
+      child.stderr.write('CategoryInfo: PowerShell stack\n');
+      child.emit('close', 1);
+    });
+    return child;
+  };
+  await assert.rejects(buildAndroidArtifact({ gameRoot: f.game, jobRoot, version: nextAndroidVersion(['0.01']), spawnProcess, onLine: line => lines.push(line) }), error => {
+    assert.match(error.message, /资源导入/); assert.match(error.message, /0xC0000005/); assert.match(error.message, /import-retry-console\.log/);
+    assert.ok(!error.message.includes('CategoryInfo')); assert.ok(!error.message.includes('\uFFFD'));
+    return true;
+  });
+  assert.ok(lines.includes('正在导入字体'));
+  assert.match(await readFile(path.join(output, 'build-console.log'), 'utf8'), /正在导入字体/);
 });
 
 test('failed uploads are resumable without rebuilding and cannot replace the old download early', async t => {
