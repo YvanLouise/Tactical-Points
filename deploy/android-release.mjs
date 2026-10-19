@@ -16,8 +16,8 @@ const alive = pid => { if (!Number.isInteger(pid) || pid <= 0) return false; try
 export function androidDownloadCopy(content, artifact, url) {
   const version = artifact.version.replace(/-android-test.*$/, '');
   const mb = Math.ceil(artifact.bytes / 1000000);
-  const answer = `安卓测试版 ${version} 已开放下载，支持 Android 7.0 及以上，需要 OpenGL ES 3.0，安装包约 ${mb} MB。下载 APK 后打开安装，按系统提示允许该来源安装应用。本包由构建时的最新原版源码生成，使用同一测试签名，可覆盖升级。`;
-  const message = `Android 测试版 ${version} 已更新，包含本次构建时的最新游戏源码及安卓适配。安装包约 ${mb} MB，支持 Android 7.0 及以上。\n游戏仍在开发中，欢迎体验并反馈问题；历史安装包保留在 GitHub 发布记录中。`;
+  const answer = `安卓测试版 ${version} 已开放下载，安装包约 ${mb} MB。需要 Android 7.0 或以上，并支持 OpenGL ES 3.0。下载 APK 后直接安装；如果系统拦截，请按提示允许安装。已安装旧测试版的玩家可以覆盖升级。`;
+  const message = `当前版本为 Android 测试版 ${version}，安装包约 ${mb} MB，支持 Android 7.0 及以上。\n游戏还在开发，遇到问题可以到游戏交流群反馈。旧版安装包可在 GitHub 发布记录中找到。`;
   const refresh = (key, fallback) => {
     const text = content[key] || '';
     if (!/(?:Android|安卓)\s*测试版\s*\d+(?:\.\d+)+/i.test(text)) return fallback;
