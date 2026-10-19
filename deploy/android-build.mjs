@@ -151,7 +151,7 @@ export async function buildAndroidArtifact({ gameRoot, jobRoot, version, onLine 
   await writeFile(path.join(output, 'build-console.log'), log.join('\n') + '\n');
   if (exitCode !== 0) {
     const diagnostic = await readFile(path.join(output, 'build-error.json'), 'utf8').then(JSON.parse).catch(() => null);
-    const labels = { import: '资源导入', export: '安装包导出', signature: '签名与版本校验', smoke: '包内导航校验' };
+    const labels = { import: '资源导入', export: '安装包导出', signature: '签名与版本校验', smoke: '包内导航校验', checksum: '校验记录生成' };
     const phase = labels[diagnostic?.stage] || '构建或校验';
     const code = Number.isInteger(diagnostic?.exitCode) && diagnostic.exitCode !== 0 ? `（Godot 退出码 0x${(diagnostic.exitCode >>> 0).toString(16).toUpperCase().padStart(8, '0')}）` : '';
     const summary = diagnostic?.message ? ` ${diagnostic.message}` : '';

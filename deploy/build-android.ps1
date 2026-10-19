@@ -177,7 +177,12 @@ try {
         if ($buildExitCode -ne 0 -or (Select-String -LiteralPath $smokeLog -Pattern 'SCRIPT ERROR:|ERROR:|WARNING:' -Quiet) -or -not (Select-String -LiteralPath $smokeLog -Pattern 'LATEST_ANDROID_SMOKE: PASS' -Quiet)) { throw 'APK navigation check failed. See output/verification/smoke.log.' }
     } finally { $env:APPDATA = $previousAppData }
 
-    $hash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+    $buildStage = 'checksum'
+    $buildExitCode = $null
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    $apkStream = [IO.File]::OpenRead($apk)
+    try { $hash = [BitConverter]::ToString($algorithm.ComputeHash($apkStream)).Replace('-', '').ToLowerInvariant() }
+    finally { $apkStream.Dispose(); $algorithm.Dispose() }
     [IO.File]::WriteAllText((Join-Path $apkRoot 'SHA256SUMS.txt'), "$hash  $([IO.Path]::GetFileName($apk))`n", $utf8)
     $timestamp = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(8)).ToString('o')
     $metadata = [ordered]@{
