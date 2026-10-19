@@ -17,7 +17,13 @@ export function androidDownloadCopy(content, artifact, url) {
   const version = artifact.version.replace(/-android-test.*$/, '');
   const mb = Math.ceil(artifact.bytes / 1000000);
   const answer = `安卓测试版 ${version} 已开放下载，支持 Android 7.0 及以上，需要 OpenGL ES 3.0，安装包约 ${mb} MB。下载 APK 后打开安装，按系统提示允许该来源安装应用。本包由构建时的最新原版源码生成，使用同一测试签名，可覆盖升级。`;
-  return { ...content, 'release.downloadUrl': url, 'release.readyStatus': `Android 测试版 ${version}`, 'release.message': `Android 测试版 ${version} 已更新，包含本次构建时的最新游戏源码及安卓适配。安装包约 ${mb} MB，支持 Android 7.0 及以上。\n游戏仍在开发中，欢迎体验并反馈问题；历史安装包保留在 GitHub 发布记录中。`, 'faq.download.answer': answer, 'faq.download.readyAnswer': answer, 'modes.footnote': content['modes.footnote'].replace(/页面展示最新开发版内容，与当前可下载的安卓[^。]*。/g, '').trim() };
+  const message = `Android 测试版 ${version} 已更新，包含本次构建时的最新游戏源码及安卓适配。安装包约 ${mb} MB，支持 Android 7.0 及以上。\n游戏仍在开发中，欢迎体验并反馈问题；历史安装包保留在 GitHub 发布记录中。`;
+  const refresh = (key, fallback) => {
+    const text = content[key] || '';
+    if (!/(?:Android|安卓)\s*测试版\s*\d+(?:\.\d+)+/i.test(text)) return fallback;
+    return text.replace(/((?:Android|安卓)\s*测试版\s*)\d+(?:\.\d+)+/gi, (_match, prefix) => `${prefix}${version}`).replace(/(安装包约\s*)\d+(?:\.\d+)?(\s*MB)/gi, (_match, prefix, unit) => `${prefix}${mb}${unit}`);
+  };
+  return { ...content, 'release.downloadUrl': url, 'release.readyStatus': `Android 测试版 ${version}`, 'release.message': refresh('release.message', message), 'faq.download.answer': refresh('faq.download.answer', answer), 'faq.download.readyAnswer': refresh('faq.download.readyAnswer', answer), 'modes.footnote': content['modes.footnote'].replace(/页面展示最新开发版内容，与当前可下载的安卓[^。]*。/g, '').trim() };
 }
 
 export async function uploadAndroidRelease(api, plan, artifact, source, onProgress = () => {}) {

@@ -12,7 +12,7 @@ import { createReadmeStore } from '../content/readme-store.mjs';
 import { createImageStore } from '../content/image-store.mjs';
 import { createLocalServer } from '../server.mjs';
 import { nextAndroidVersion, prepareAndroidSnapshot, buildAndroidArtifact } from '../deploy/android-build.mjs';
-import { createAndroidPublisher, uploadAndroidRelease } from '../deploy/android-release.mjs';
+import { androidDownloadCopy, createAndroidPublisher, uploadAndroidRelease } from '../deploy/android-release.mjs';
 import { PublishError } from '../deploy/github.mjs';
 
 const source = fileURLToPath(new URL('../', import.meta.url));
@@ -70,6 +70,23 @@ test('Android versions advance beyond source and previous releases with increasi
   assert.equal(next.version, '0.10'); assert.equal(next.filename, 'shudianpai-0.10-android-test.apk');
   assert.ok(next.versionCode > nextAndroidVersion(['0.08']).versionCode);
   assert.throws(() => nextAndroidVersion(['999.999.999']), /版本号/);
+});
+
+test('Android publication keeps edited download prose and author links while refreshing package details', () => {
+  const content = {
+    'release.message': '当前版本为 Android 测试版 0.02，安装包约 152 MB。\n有问题请到 QQ 群反馈。',
+    'faq.download.answer': '安卓测试版 0.02 已开放下载，安装包约 152 MB。可以覆盖升级。',
+    'faq.download.readyAnswer': '安卓测试版 0.02 已开放下载，安装包约 152 MB。可以覆盖升级。',
+    'modes.footnote': '保留玩法介绍。',
+    'author.supportUrl': 'https://example.com/support',
+    'community.groupNumber': '123456789',
+  };
+  const updated = androidDownloadCopy(content, { version: '0.03-android-test', bytes: 151257729 }, 'https://example.com/android-test-v0.03.apk');
+  for (const key of ['release.message', 'faq.download.answer', 'faq.download.readyAnswer']) assert.equal(updated[key], content[key].replaceAll('0.02', '0.03'));
+  for (const key of ['modes.footnote', 'author.supportUrl', 'community.groupNumber']) assert.equal(updated[key], content[key]);
+  const next = androidDownloadCopy(updated, { version: '0.04-android-test', bytes: 160000001 }, 'https://example.com/android-test-v0.04.apk');
+  assert.equal(next['release.message'], content['release.message'].replaceAll('0.02', '0.04').replace('152 MB', '161 MB'));
+  assert.equal(content['release.message'].includes('0.02'), true);
 });
 
 test('source snapshot uses the current original project, preserves startup and leaves source and old Android copy untouched', async t => {

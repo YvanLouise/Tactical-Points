@@ -34,7 +34,7 @@ async function fixture(t, publisherFactory, { legacy = false } = {}) {
 test("all editable fields are covered and editor remains outside public dist", async (t) => {
   const { root, server, origin, state } = await fixture(t);
   assert.equal(server.address().address, "127.0.0.1");
-  assert.equal(fields.length, 207);
+  assert.equal(fields.length, 211);
   assert.equal(new Set(fields.map((field) => field.key)).size, fields.length);
   assert.equal(validateContent(state.content), null);
   assert.equal(validateContent(state.original), null);
@@ -64,7 +64,7 @@ test("legacy copy gains editable author and community defaults without rewriting
   const raw = JSON.parse(await readFile(path.join(root, "dist/content.json"), "utf8"));
   assert.equal(raw["author.name"], undefined);
   assert.equal(state.content["author.name"], "YvanLouise");
-  assert.equal(state.content["community.groupNumber"], "");
+  assert.equal(state.content["community.groupNumber"], "1131267201");
   assert.equal(state.content["site.shareTitle"], raw["site.shareTitle"]);
   assert.equal(state.sections.find((section) => section.id === "author").page, "about");
   assert.equal((await fetch(`${origin}/about.html`)).status, 200);
@@ -89,6 +89,28 @@ test("a failed author-page write rolls back the home page and leaves copy unchan
   await assert.rejects(createContentStore(root).save({ ...state.content, "hero.note": "must roll back" }, state.revision));
   assert.deepEqual(await readFile(path.join(root, "dist/index.html")), before);
   assert.deepEqual(await readFile(path.join(root, "dist/content.json")), content);
+});
+test("author resource links and the shared QQ number are editable and unsafe URLs cannot be saved", async (t) => {
+  const { root, state, put } = await fixture(t);
+  assert.equal(state.content["author.websiteUrl"], "https://yvanlouise.github.io/Tactical-Points/#intro");
+  assert.equal(state.content["author.supportUrl"], "https://afdian.com/a/Yvanlouiseks");
+  assert.equal(state.content["community.groupNumber"], "1131267201");
+  const authorFields = state.sections.find((section) => section.id === "author").groups.flatMap((group) => group.fields.map((field) => field.key));
+  assert.ok(authorFields.includes("author.websiteUrl") && authorFields.includes("author.supportUrl"));
+  for (const key of ["author.websiteUrl", "author.supportUrl"]) {
+    assert.equal((await put({ ...state.content, [key]: "javascript:alert(1)" })).status, 422);
+    assert.equal((await put({ ...state.content, [key]: "https://name:secret@example.com/" })).status, 422);
+  }
+  const next = { ...state.content, "author.websiteUrl": "https://example.com/game#intro", "author.supportUrl": "https://example.com/support", "community.groupNumber": "987654321" };
+  assert.equal((await put(next)).status, 200);
+  const saved = await createContentStore(root).load();
+  assert.equal(saved.content["author.supportUrl"], next["author.supportUrl"]);
+  for (const file of ["index.html", "about.html"]) {
+    const html = await readFile(path.join(root, "dist", file), "utf8");
+    assert.ok(html.includes('data-link-url="author.websiteUrl"') && html.includes('data-link-url="author.supportUrl"'));
+    assert.ok(html.includes('data-community-number>987654321</span>'));
+  }
+  assert.equal((await put({ ...next, "author.websiteUrl": "", "author.supportUrl": "", "community.groupNumber": "" }, saved.revision)).status, 200);
 });
 test("invalid fields and unsafe links cannot change files", async (t) => {
   const { root, state, put } = await fixture(t);

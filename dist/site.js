@@ -27,12 +27,12 @@ export function applySiteContent(copy, images, { about = false } = {}) {
   if (nav && toggle) { nav.hidden = [...nav.children].every((node) => node.hidden); toggle.hidden = nav.hidden; }
   const bottom = document.querySelector(".mobile-nav");
   if (bottom) bottom.hidden = [...bottom.children].every((node) => node.hidden);
-  const profile = document.querySelector("#author-profile");
-  if (profile) {
-    const url = configuredUrl(copy["author.profileUrl"]);
-    profile.hidden = !url || !hasText(copy["author.profileLabel"]);
-    if (url) profile.href = url; else profile.removeAttribute("href");
+  for (const link of document.querySelectorAll("[data-link-url]")) {
+    const url = configuredUrl(copy[link.dataset.linkUrl]);
+    link.hidden = !url || !hasText(link.textContent);
+    if (url) link.href = url; else link.removeAttribute("href");
   }
+  renderGroupNumbers(copy);
   if (about) {
     document.title = copy["author.pageTitle"];
     document.querySelector('meta[name="description"]').content = copy["author.pageDescription"];
@@ -55,31 +55,39 @@ export function renderCommunity(copy, images) {
   const join = document.querySelector("#community-join");
   join.hidden = !url || !hasText(copy["release.communityLabel"]);
   if (url) join.href = url; else join.removeAttribute("href");
-  document.querySelector("#community-number-row").hidden = !hasText(number);
-  optionalText(document.querySelector("#community-number"), number);
-  document.querySelector("#community-copy").hidden = !hasText(number) || !hasText(copy["community.copyLabel"]);
   document.querySelector("#community-qr").hidden = !qr.custom;
   document.querySelector("#community-qr-image").href = qr.src;
   document.querySelector("#community-actions").hidden = join.hidden && !hasText(number);
   section.hidden = !hasText(section.textContent) && !qr.custom;
 }
 
+function renderGroupNumbers(copy) {
+  const number = copy["community.groupNumber"] || "";
+  for (const group of document.querySelectorAll("[data-community-group]")) {
+    group.querySelector("[data-community-number-row]").hidden = !hasText(number);
+    optionalText(group.querySelector("[data-community-number]"), number);
+    group.querySelector("[data-community-copy]").hidden = !hasText(number) || !hasText(copy["community.copyLabel"]);
+    const result = group.querySelector("[data-community-copy-result]");
+    if (result.dataset.number !== number) { result.textContent = ""; result.dataset.number = number; }
+  }
+}
+
 export function setupCommunity(getCopy) {
-  const button = document.querySelector("#community-copy");
-  if (!button) return;
-  let sequence = 0;
-  button.addEventListener("click", async () => {
-    const copy = getCopy(), number = copy["community.groupNumber"], current = ++sequence;
-    const result = document.querySelector("#community-copy-result");
-    result.textContent = "";
-    if (!hasText(number)) return;
-    try {
-      await navigator.clipboard.writeText(number);
-      if (current === sequence) result.textContent = copy["community.copiedLabel"];
-    } catch {
-      if (current === sequence) result.textContent = copy["community.copyError"];
-    }
-  });
+  for (const button of document.querySelectorAll("[data-community-copy]")) {
+    let sequence = 0;
+    button.addEventListener("click", async () => {
+      const copy = getCopy(), number = copy["community.groupNumber"], current = ++sequence;
+      const result = button.closest("[data-community-group]").querySelector("[data-community-copy-result]");
+      result.textContent = "";
+      if (!hasText(number)) return;
+      try {
+        await navigator.clipboard.writeText(number);
+        if (current === sequence && getCopy()["community.groupNumber"] === number) result.textContent = copy["community.copiedLabel"];
+      } catch {
+        if (current === sequence && getCopy()["community.groupNumber"] === number) result.textContent = copy["community.copyError"];
+      }
+    });
+  }
 }
 
 export function setupNavigation() {

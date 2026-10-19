@@ -52,7 +52,8 @@ export const sections = [
   ] },
   { id: "author", label: "关于作者", page: "about", anchor: "author", note: "独立作者页与首页作者简介共用资料。头像可在“图片素材”更换，所有文案均可留空。", groups: [
     group("作者资料", [field("author.name", "作者名称"), paragraph("author.heading", "页面主标题", { rows: 2, maxLength: 160 }), field("author.role", "身份介绍"), paragraph("author.intro", "简介"), field("author.avatarAlt", "头像替代文字")]),
-    group("创作与交流", [field("author.storyHeading", "创作介绍标题"), paragraph("author.story", "创作介绍"), field("author.contactHeading", "交流标题"), paragraph("author.contact", "交流说明"), field("author.profileUrl", "个人主页链接", { type: "url", maxLength: 2048 }), field("author.profileLabel", "个人主页按钮"), field("author.communityLabel", "前往社群按钮"), field("author.backLabel", "返回首页文字")]),
+    group("创作与交流", [field("author.storyHeading", "创作介绍标题"), paragraph("author.story", "创作介绍"), field("author.contactHeading", "交流标题"), paragraph("author.contact", "交流说明"), field("author.communityLabel", "前往社群按钮"), field("author.backLabel", "返回首页文字")]),
+    group("官网与个人主页", [field("author.websiteUrl", "游戏官方网站", { type: "url", maxLength: 2048 }), field("author.websiteLabel", "官网链接文字"), field("author.supportUrl", "爱发电主页", { type: "url", maxLength: 2048 }), field("author.supportLabel", "爱发电链接文字"), field("author.profileUrl", "其他个人主页链接", { type: "url", maxLength: 2048 }), field("author.profileLabel", "其他个人主页链接文字")]),
     group("首页作者入口", [field("author.teaserHeading", "入口标题"), paragraph("author.teaserText", "入口说明"), field("author.teaserLabel", "入口链接文字")], { page: "home", anchor: "author-teaser" }),
     group("页面信息", [field("author.pageTitle", "浏览器与分享标题"), paragraph("author.pageDescription", "搜索与分享摘要")]),
   ] },

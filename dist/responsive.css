@@ -51,6 +51,13 @@
 .author-reading p { font-size: 16px; color: #535b4e; line-height: 2; }
 .author-links { display: flex; flex-wrap: wrap; align-items: center; gap: 24px 36px; margin-top: 28px; }
 .author-links .text-link, .author-links .button { font-size: 20px; }
+.author-teaser-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; }
+.author-group { margin-top: 22px; }
+.author-group .community-number-row { gap: 8px 14px; }
+
+@media (min-width: 761px) {
+  .gallery-thumbnails { display: none; }
+}
 
 @media (max-width: 1100px) {
   .site-header { position: relative; min-height: 80px; z-index: 30; }

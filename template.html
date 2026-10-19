@@ -16,8 +16,8 @@
   <link rel="preload" href="{{image.hero}}" as="image" fetchpriority="high">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./motion.css">
-  <link rel="stylesheet" href="./responsive.css">
-  <script type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./responsive.css?v=20261019-links">
+  <script type="module" src="./app.js?v=20261019-links"></script>
   <title>{{site.title}}</title>
 </head>
 <body>
@@ -92,12 +92,12 @@
       <div class="wrap community-layout">
         <div class="community-intro"><h2 id="community-title" data-copy="community.heading">{{community.heading}}</h2><p data-copy="community.intro">{{community.intro}}</p></div>
         <div class="community-details">
-          <div class="community-info"><h3 data-copy="community.groupName">{{community.groupName}}</h3><p class="community-status" id="community-status">{{community.status}}</p><p class="community-note" id="community-note">{{community.note}}</p>
+          <div class="community-info" data-community-group><h3 data-copy="community.groupName">{{community.groupName}}</h3><p class="community-status" id="community-status">{{community.status}}</p><p class="community-note" id="community-note">{{community.note}}</p>
             <div id="community-actions" class="community-actions" hidden>
-              <div id="community-number-row" class="community-number-row" hidden><span data-copy="community.numberLabel">{{community.numberLabel}}</span><span id="community-number" class="community-number">{{community.groupNumber}}</span><button id="community-copy" class="copy-number" type="button" data-copy="community.copyLabel">{{community.copyLabel}}</button></div>
+              <div id="community-number-row" class="community-number-row" data-community-number-row hidden><span data-copy="community.numberLabel">{{community.numberLabel}}</span><span id="community-number" class="community-number" data-community-number>{{community.groupNumber}}</span><button id="community-copy" class="copy-number" type="button" data-community-copy data-copy="community.copyLabel">{{community.copyLabel}}</button></div>
               <a id="community-join" class="button button-sage" target="_blank" rel="noopener noreferrer" hidden><span data-copy="release.communityLabel">{{release.communityLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a>
             </div>
-            <p id="community-copy-result" class="copy-result" role="status" aria-live="polite"></p>
+            <p id="community-copy-result" class="copy-result" data-community-copy-result role="status" aria-live="polite"></p>
           </div>
           <figure id="community-qr" class="community-qr" hidden><a id="community-qr-image" href="{{image.community}}" target="_blank" rel="noopener noreferrer" aria-label="查看完整群二维码"><img src="{{image.community}}" width="240" height="240" loading="lazy" alt="{{community.qrAlt}}" data-copy-alt="community.qrAlt" data-image-slot="community-qr"></a><figcaption data-copy="community.qrCaption">{{community.qrCaption}}</figcaption></figure>
         </div>
@@ -105,7 +105,10 @@
     </section>
     <section class="author-teaser wrap" id="author-teaser" aria-labelledby="author-teaser-title">
       <img class="author-teaser-avatar" src="{{image.author}}" width="240" height="240" loading="lazy" alt="{{author.avatarAlt}}" data-copy-alt="author.avatarAlt" data-image-slot="author-avatar">
-      <div><h2 id="author-teaser-title" data-copy="author.teaserHeading">{{author.teaserHeading}}</h2><p class="author-name" data-copy="author.name">{{author.name}}</p><p data-copy="author.teaserText">{{author.teaserText}}</p><a class="text-link" href="./about.html" data-text-link><span data-copy="author.teaserLabel">{{author.teaserLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div>
+      <div><h2 id="author-teaser-title" data-copy="author.teaserHeading">{{author.teaserHeading}}</h2><p class="author-name" data-copy="author.name">{{author.name}}</p><p data-copy="author.teaserText">{{author.teaserText}}</p>
+        <div class="author-teaser-links"><a class="text-link" href="./about.html" data-text-link><span data-copy="author.teaserLabel">{{author.teaserLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a class="text-link" data-link-url="author.websiteUrl" target="_blank" rel="noopener noreferrer" hidden><span data-copy="author.websiteLabel">{{author.websiteLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a class="text-link" data-link-url="author.supportUrl" target="_blank" rel="noopener noreferrer" hidden><span data-copy="author.supportLabel">{{author.supportLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div>
+        <div class="author-group" data-community-group><div class="community-number-row" data-community-number-row hidden><span data-copy="community.numberLabel">{{community.numberLabel}}</span><span class="community-number" data-community-number>{{community.groupNumber}}</span><button class="copy-number" type="button" data-community-copy data-copy="community.copyLabel">{{community.copyLabel}}</button></div><p class="copy-result" data-community-copy-result role="status" aria-live="polite"></p></div>
+      </div>
     </section>
     <section class="development wrap" id="development" aria-labelledby="development-title"><div class="closing-rule"><svg><use href="#spark"/></svg></div><h2 id="development-title"><span data-copy="release.heading">{{release.heading}}</span></h2><p id="development-message"><span data-copy="release.message">{{release.message}}</span></p><span class="development-status"><span></span><span data-copy="release.status">{{release.status}}</span></span><div class="release-links" id="release-links" hidden><a id="download-link" class="button button-dark" hidden><span data-copy="release.downloadLabel">{{release.downloadLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a><a id="community-link" class="text-link" hidden><span data-copy="release.communityLabel">{{release.communityLabel}}</span><svg class="icon"><use href="#arrow-right"/></svg></a></div></section>
   </main>
