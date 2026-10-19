@@ -22,6 +22,10 @@ async function fixture(t) {
   const root = path.join(game, 'website');
   for (const folder of ['dist', 'content', 'editor']) await mkdir(path.join(root, folder), { recursive: true });
   for (const file of ['dist/content.json', 'dist/index.html', 'content/original.json', 'template.html', 'about.template.html', 'README.md', 'editor/index.html']) await copyFile(path.join(source, file), path.join(root, file));
+  const contentFile = path.join(root, 'dist/content.json');
+  const initialCopy = JSON.parse(await readFile(contentFile, 'utf8'));
+  initialCopy['release.downloadUrl'] = 'https://github.com/YvanLouise/Tactical-Points/releases/download/android-test-v0.01/shudianpai-0.01-android-test.apk';
+  await writeFile(contentFile, JSON.stringify(initialCopy));
   await mkdir(path.join(game, 'android_test/.build/keys'), { recursive: true });
   await writeFile(path.join(game, 'android_test/.build/keys/android-test.keystore'), 'fixture key');
   await writeFile(path.join(game, 'project.godot'), '[application]\nconfig/name="Test"\nconfig/version="0.01"\nrun/main_scene="res://scenes/ui/CreatorIntro.tscn"\n[editor_plugins]\nenabled=PackedStringArray("res://addons/editor/plugin.cfg")\n');
@@ -82,6 +86,8 @@ test('source snapshot uses the current original project, preserves startup and l
   const config = await readFile(path.join(result.project, 'project.godot'), 'utf8');
   assert.match(config, /CreatorIntro.tscn/); assert.match(config, /AndroidRuntime=/); assert.match(config, /enabled=PackedStringArray\(\)/);
   assert.match(config, /import\/use_multiple_threads=false/);
+  assert.match(config, /window\/stretch\/aspect="expand"/);
+  assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /screen\/edge_to_edge=true/);
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /version\/code=2000/);
   assert.match(await readFile(path.join(result.project, 'scripts/ui/main_menu.gd'), 'utf8'), /not OS.has_feature\("android"\)/);
   assert.equal(await readFile(path.join(result.project, 'assets/latest.txt'), 'utf8'), 'current original asset');

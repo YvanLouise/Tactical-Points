@@ -1,5 +1,6 @@
 extends SceneTree
 
+const LAYOUT := preload("res://scripts/ui/screen_layout.gd")
 var _failures := 0
 
 
@@ -13,6 +14,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	_check(ProjectSettings.get_setting("display/window/stretch/aspect") == "expand", "Android supports the device aspect ratio")
+	LAYOUT.content_zoom = 1.035
+	root.size = Vector2i(2400, 1080)
 	var settings := ConfigFile.new()
 	settings.set_value("accessibility", "reduced_motion", true)
 	settings.set_value("audio", "music_volume", 0.0)
@@ -25,6 +29,8 @@ func _run() -> void:
 	_check(is_instance_valid(runtime), "Android runtime is included")
 	change_scene_to_file("res://scenes/ui/MainMenu.tscn")
 	await _settle()
+	_check(current_scene.get_node("_Letterbox").get_global_rect().grow(1).encloses(root.get_visible_rect()), "Android retains a black matte around the frame")
+	_check(current_scene.get_node("Design").scale.x > 1.0, "Mobile content uses proportional zoom")
 	runtime.handle_back()
 	await _settle()
 	_check(current_scene.get_node("ModalLayer").visible, "Back opens exit confirmation")

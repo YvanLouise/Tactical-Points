@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, copyFile, readFile, rm, readdir } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, readFile, writeFile, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,12 +8,19 @@ import { request } from "node:http";
 import { createLocalServer } from "../server.mjs";
 import { fields, validateContent } from "../content/schema.mjs";
 import { createContentStore } from "../content/store.mjs";
+import { ADDITIONAL_COPY } from "../dist/content-defaults.js";
 
 const source = fileURLToPath(new URL("../", import.meta.url));
-async function fixture(t, publisherFactory) {
+async function fixture(t, publisherFactory, { legacy = false } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "shudian-editor-"));
   for (const folder of ["dist", "content", "editor"]) await mkdir(path.join(root, folder));
   for (const file of ["dist/content.json", "dist/index.html", "content/original.json", "template.html", "about.template.html", "editor/index.html"]) await copyFile(path.join(source, file), path.join(root, file));
+  if (legacy) {
+    const filename = path.join(root, "dist/content.json");
+    const content = JSON.parse(await readFile(filename, "utf8"));
+    for (const key of Object.keys(ADDITIONAL_COPY)) delete content[key];
+    await writeFile(filename, JSON.stringify(content));
+  }
   const server = await createLocalServer({ root, port: 0, publisherFactory });
   t.after(async () => { await new Promise((resolve) => server.close(resolve)); await rm(root, { recursive: true, force: true }); });
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -53,7 +60,7 @@ test("save persists text and regenerates escaped static HTML and metadata", asyn
   assert.equal(JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8"))["hero.headingStart"], state.content["hero.headingStart"]);
 });
 test("legacy copy gains editable author and community defaults without rewriting saved drafts", async (t) => {
-  const { root, origin, state } = await fixture(t);
+  const { root, origin, state } = await fixture(t, undefined, { legacy: true });
   const raw = JSON.parse(await readFile(path.join(root, "dist/content.json"), "utf8"));
   assert.equal(raw["author.name"], undefined);
   assert.equal(state.content["author.name"], "YvanLouise");
