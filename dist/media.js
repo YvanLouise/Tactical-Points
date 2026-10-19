@@ -6,6 +6,8 @@ export const IMAGE_LIMITS = { bytes: 12 * 1024 * 1024, edge: 8192, pixels: 32 * 
 export const IMAGE_SLOTS = [
   { id: "hero", label: "首屏插画", group: "首屏与装饰", src: "./assets/hero.png", width: 1358, height: 1159, context: { anchor: "intro" } },
   { id: "faq", label: "常见问题装饰图", group: "首屏与装饰", src: "./assets/cat.svg", width: 150, height: 100, context: { anchor: "faq" } },
+  { id: "author-avatar", label: "作者头像", group: "作者与社群", src: "./assets/author-mark.svg", width: 240, height: 240, context: { page: "about", anchor: "author" } },
+  { id: "community-qr", label: "交流群二维码", group: "作者与社群", src: "./assets/community-placeholder.svg", width: 240, height: 240, context: { anchor: "community" } },
   ...CHARACTERS.map((role, index) => ({ id: `character-${role.id}`, label: names[index], group: "角色立绘", src: `./assets/characters/${role.id}.png`, width: 1086, height: 1448, context: { anchor: "characters", character: role.id } })),
   ...SCREENSHOTS.map((shot, index) => ({ id: `screen-${shot.id}`, label: screens[index][0], group: "实机截图", src: `./assets/screens/${shot.id}.png`, width: screens[index][1], height: screens[index][2], context: { anchor: "gallery", screenshot: index } })),
   { id: "favicon", label: "浏览器图标", group: "站点图标", src: "./assets/favicon.png", width: 254, height: 254, context: { anchor: "intro" } },

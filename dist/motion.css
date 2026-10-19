@@ -146,7 +146,7 @@
   .faq-list details[open]::details-content { block-size: auto; opacity: 1; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1100px) {
   .site-nav {
     opacity: 0;
     translate: 0 -8px;

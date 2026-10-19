@@ -32,7 +32,7 @@ export const sections = [
       ...Object.entries(modeNames).flatMap(([skill, name]) => [field(`characters.${id}.${skill}Name`, `${name} · 能力名`, { context: { skill } }), paragraph(`characters.${id}.${skill}Description`, `${name} · 能力说明`, { context: { skill } })]),
     ], { character: id })),
   ] },
-  { id: "gallery", label: "实机画面", anchor: "gallery", note: "这里只调整截图文字；图片文件仍由官网素材目录管理。", groups: [
+  { id: "gallery", label: "实机画面", anchor: "gallery", note: "调整截图名称和说明；实际图片可在“图片素材”更换。", groups: [
     group("版块标题", [field("gallery.heading", "标题")]),
     ...SCREENSHOTS.map(({ id }, screenshot) => group(["术点模式", "王国模式", "角色选择", "交互教程"][screenshot], [field(`gallery.${id}.title`, "截图名称"), field(`gallery.${id}.caption`, "图片说明"), paragraph(`gallery.${id}.alt`, "图片替代文字")], { screenshot })),
   ] },
@@ -43,11 +43,23 @@ export const sections = [
   ] },
   { id: "release", label: "开发与链接", anchor: "development", note: "链接留空时隐藏对应入口。只保存到本地，不会自动发布线上。", groups: [
     group("开发进度", [field("release.heading", "标题"), paragraph("release.message", "开发说明"), field("release.status", "开发中的状态文字"), field("release.readyStatus", "已有下载时的状态文字")]),
-    group("对外入口", [field("release.downloadUrl", "下载 / 商店链接", { type: "url", maxLength: 2048, optional: true, hint: "尚未准备好时留空。" }), field("release.downloadLabel", "下载按钮文字"), field("release.communityUrl", "玩家社群链接", { type: "url", maxLength: 2048, optional: true, hint: "支持完整的 http:// 或 https:// 链接。" }), field("release.communityLabel", "社群按钮文字")]),
+    group("下载入口", [field("release.downloadUrl", "下载 / 商店链接", { type: "url", maxLength: 2048, optional: true, hint: "尚未准备好时留空。" }), field("release.downloadLabel", "下载按钮文字")]),
+  ] },
+  { id: "community", label: "游戏交流群", anchor: "community", note: "没有链接、群号或二维码时显示筹备状态。群二维码可在“图片素材”上传。", groups: [
+    group("社群介绍", [paragraph("community.heading", "标题", { rows: 2 }), paragraph("community.intro", "介绍"), field("community.groupName", "群名称")]),
+    group("入群方式", [field("release.communityUrl", "入群链接", { type: "url", maxLength: 2048, hint: "支持完整的 HTTP(S) 链接，留空时隐藏入群按钮。" }), field("release.communityLabel", "入群按钮文字"), field("community.groupNumber", "群号", { maxLength: 80, hint: "留空时隐藏群号和复制按钮。" }), field("community.numberLabel", "群号前缀"), field("community.qrAlt", "二维码替代文字"), field("community.qrCaption", "二维码下方说明")]),
+    group("状态与提示", [field("community.status", "筹备状态"), paragraph("community.note", "筹备提示"), field("community.readyStatus", "已有入群方式时的状态"), paragraph("community.readyNote", "已有入群方式时的提示"), field("community.copyLabel", "复制按钮文字"), field("community.copiedLabel", "复制成功提示"), paragraph("community.copyError", "复制失败提示")]),
+  ] },
+  { id: "author", label: "关于作者", page: "about", anchor: "author", note: "独立作者页与首页作者简介共用资料。头像可在“图片素材”更换，所有文案均可留空。", groups: [
+    group("作者资料", [field("author.name", "作者名称"), paragraph("author.heading", "页面主标题", { rows: 2, maxLength: 160 }), field("author.role", "身份介绍"), paragraph("author.intro", "简介"), field("author.avatarAlt", "头像替代文字")]),
+    group("创作与交流", [field("author.storyHeading", "创作介绍标题"), paragraph("author.story", "创作介绍"), field("author.contactHeading", "交流标题"), paragraph("author.contact", "交流说明"), field("author.profileUrl", "个人主页链接", { type: "url", maxLength: 2048 }), field("author.profileLabel", "个人主页按钮"), field("author.communityLabel", "前往社群按钮"), field("author.backLabel", "返回首页文字")]),
+    group("首页作者入口", [field("author.teaserHeading", "入口标题"), paragraph("author.teaserText", "入口说明"), field("author.teaserLabel", "入口链接文字")], { page: "home", anchor: "author-teaser" }),
+    group("页面信息", [field("author.pageTitle", "浏览器与分享标题"), paragraph("author.pageDescription", "搜索与分享摘要")]),
   ] },
   { id: "site", label: "导航与网站信息", anchor: "intro", note: "浏览器标题和分享摘要也会写入生成的静态页面。", groups: [
     group("网站信息", [field("site.brand", "游戏名称"), field("site.title", "浏览器标题"), paragraph("site.description", "搜索摘要"), field("site.shareTitle", "分享标题"), paragraph("site.shareDescription", "分享摘要")]),
-    group("导航文字", Object.entries({ intro: "游戏介绍", modes: "玩法模式", characters: "角色图鉴", gallery: "实机画面", development: "开发进度" }).map(([key, label]) => field(`nav.${key}`, label))),
+    group("导航文字", Object.entries({ intro: "游戏介绍", modes: "玩法模式", characters: "角色图鉴", gallery: "实机画面", author: "关于作者", community: "游戏交流群", development: "开发进度" }).map(([key, label]) => field(`nav.${key}`, label))),
+    group("手机底部导航", Object.entries({ intro: "首页", modes: "玩法", characters: "角色", community: "社群" }).map(([key, label]) => field(`mobile.${key}`, label))),
     group("页脚", [field("footer.english", "英文副标题"), field("footer.credit", "创作署名"), field("footer.copyright", "版权文字")], { anchor: "development" }),
   ] },
 ];

@@ -1,6 +1,7 @@
 import { setupPublishing } from "./publish.js";
 import { createReadmeEditor } from "./readme.js";
 import { createImageEditor } from "./images.js";
+import { IMAGE_SLOTS } from "../media.js";
 
 const $ = (selector) => document.querySelector(selector);
 const clone = (value) => structuredClone(value);
@@ -8,6 +9,7 @@ let draft, saved, original, sections, revision, token;
 let activeSection = "home", activeGroup = {}, activeContext = {}, ready = false, saving = false;
 let device = window.matchMedia("(max-width: 900px)").matches ? "mobile" : "desktop";
 let history = [], future = [], editKey = "", editAt = 0, fieldDefinitions = [];
+let previewPage = "home";
 const frame = $("#preview");
 const dirtyKeys = () => Object.keys(draft || {}).filter((key) => draft[key] !== saved[key]);
 const currentSection = () => sections.find((section) => section.id === activeSection);
@@ -23,6 +25,12 @@ const readme = createReadmeEditor({ getToken: () => token, onChange: () => { if 
 const images = createImageEditor({ getToken: () => token, onChange: () => { if (draft && sections) { updateStatus(); preview(); } }, onError: (text) => message(text, Boolean(text)), onSelect: (context) => { if (editingImages()) { activeContext = context; preview(true); } } });
 function preview(focus = false) {
   if (editingReadme()) return;
+  const page = activeContext.page === "about" ? "about" : "home";
+  if (page !== previewPage) {
+    previewPage = page; ready = false;
+    frame.src = page === "about" ? "/about.html?editor-preview=1" : "/?editor-preview=1";
+    sizePreview(); return;
+  }
   if (ready && draft) frame.contentWindow.postMessage({ type: "copy-preview", content: draft, images: images.state().loaded ? images.overrides() : undefined, context: activeContext, focus }, location.origin);
 }
 function sizePreview() {
@@ -40,8 +48,14 @@ function sizePreview() {
 new ResizeObserver(sizePreview).observe($("#preview-stage"));
 window.addEventListener("message", (event) => {
   if (event.source !== frame.contentWindow || event.origin !== location.origin) return;
-  if (event.data?.type === "copy-preview-ready") { ready = true; preview(true); sizePreview(); }
+  if (event.data?.type === "copy-preview-ready" && event.data.page === previewPage) { ready = true; preview(true); sizePreview(); }
   if (event.data?.type === "copy-editor-save") save();
+  if (event.data?.type === "copy-preview-navigate") {
+    const { page, anchor } = event.data;
+    if (!["home", "about"].includes(page)) return;
+    const section = page === "about" ? sections.find((item) => item.id === "author") : sections.find((item) => item.anchor === anchor && item.page !== "about");
+    selectSection(section?.id || "home");
+  }
 });
 frame.addEventListener("load", () => { if (ready) preview(true); });
 
@@ -70,7 +84,7 @@ function updateStatus() {
   $("#save-state").textContent = busy ? imageState.processing ? "正在读取图片…" : "正在写入本地文件…" : readmeMode ? !readmeState.loaded ? "README 尚未加载" : readmeState.dirty ? "README 已修改 · 未保存" : "README 已保存到本地" : imageMode ? !imageState.loaded ? "图片尚未加载" : imageState.dirty ? `${imageState.count} 张图片修改 · 未保存` : "图片已保存到本地" : keys.length ? `${keys.length} 处修改 · 未保存` : "已保存到本地";
   $("#nav-readme").classList.toggle("has-changes", readmeState.dirty);
   $("#nav-images").classList.toggle("has-changes", imageState.dirty);
-  if (imageMode) $("#field-count").textContent = "18 个图片位置 · 默认素材可随时恢复";
+  if (imageMode) $("#field-count").textContent = `${IMAGE_SLOTS.length} 个图片位置 · 默认素材可随时恢复`;
   for (const section of sections) {
     const changed = section.groups.some((group) => group.fields.some((item) => keys.includes(item.key)));
     $(`#nav-${section.id}`).classList.toggle("has-changes", changed);
@@ -106,7 +120,7 @@ function applyDraft(value) { draft = clone(value); editKey = ""; message(""); up
 function undo() { if (editingReadme()) { readme.undo(); return; } if (editingImages()) { images.undo(); return; } if (!history.length || saving) return; future.push(clone(draft)); applyDraft(history.pop()); }
 function redo() { if (editingReadme()) { readme.redo(); return; } if (editingImages()) { images.redo(); return; } if (!future.length || saving) return; history.push(clone(draft)); applyDraft(future.pop()); }
 function setContext(group, item) {
-  activeContext = { anchor: currentSection().anchor, ...group.context, ...item?.context };
+  activeContext = { page: currentSection().page || "home", anchor: currentSection().anchor, ...group.context, ...item?.context };
   if (item?.key.includes(".versions.") || item?.key.startsWith("versions.")) activeContext.anchor = "versions";
   preview(true);
 }
@@ -180,13 +194,13 @@ function selectSection(id) {
   $("#show-preview").textContent = readmeMode ? "README 预览" : "查看预览";
   for (const button of $("#section-nav").children) button.setAttribute("aria-current", String(button.id === `nav-${id}`));
   if (imageMode) {
-    $("#section-title").textContent = "图片素材"; $("#section-number").textContent = "09 / IMAGES";
+    $("#section-title").textContent = "图片素材"; $("#section-number").textContent = `${String(sections.length + 2).padStart(2, "0")} / IMAGES`;
     $("#section-note").textContent = "选择要更换的位置，上传或拖入新图片。支持预览、撤销和恢复默认，保存后可随官网一起发布。";
     $(".form-pane").scrollTop = 0; images.focus(); updateStatus(); sizePreview(); return;
   }
   if (readmeMode) {
     $("#section-title").textContent = "GitHub README";
-    $("#section-number").textContent = "08 / README";
+    $("#section-number").textContent = `${String(sections.length + 1).padStart(2, "0")} / README`;
     $("#section-note").textContent = "编辑仓库首页的项目介绍、使用说明与链接。草稿在本机预览，保存后点击“发布上线”同步到 GitHub。";
     $("#field-count").textContent = "README.md · UTF-8 · 独立保存与撤销历史";
     $(".form-pane").scrollTop = 0; updateStatus(); sizePreview(); return;
@@ -198,7 +212,7 @@ function selectSection(id) {
   $(".form-pane").scrollTop = 0;
   renderForm();
   const selected = section.groups.find((group) => group.label === $("#group-picker").value);
-  activeContext = { anchor: section.anchor, ...selected?.context };
+  activeContext = { page: section.page || "home", anchor: section.anchor, ...selected?.context };
   preview(true); sizePreview();
 }
 $("#group-picker").addEventListener("change", (event) => {
@@ -269,10 +283,10 @@ async function load() {
       button.addEventListener("click", () => selectSection(section.id)); $("#section-nav").append(button);
     }
     const readmeButton = element("button"); readmeButton.id = "nav-readme";
-    readmeButton.append(element("span", "08", "nav-number"), element("span", "GitHub README"), element("span", "", "nav-dot"));
+    readmeButton.append(element("span", String(sections.length + 1).padStart(2, "0"), "nav-number"), element("span", "GitHub README"), element("span", "", "nav-dot"));
     readmeButton.addEventListener("click", () => selectSection("readme")); $("#section-nav").append(readmeButton);
     const imageButton = element("button"); imageButton.id = "nav-images";
-    imageButton.append(element("span", "09", "nav-number"), element("span", "图片素材"), element("span", "", "nav-dot"));
+    imageButton.append(element("span", String(sections.length + 2).padStart(2, "0"), "nav-number"), element("span", "图片素材"), element("span", "", "nav-dot"));
     imageButton.addEventListener("click", () => selectSection("images")); $("#section-nav").append(imageButton);
     message(""); selectSection(activeSection); $("#workspace").setAttribute("aria-busy", "false");
   } catch (error) { message(`读取失败：${error.message} 请保持本地服务运行后，点击“重新加载文件”。`, true); }

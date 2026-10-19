@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { validateContent } from "./schema.mjs";
 import { loadImageConfig, imageTemplateValues } from "./image-config.mjs";
+import { withContentDefaults } from "../dist/content-defaults.js";
 
 export const revisionOf = (text) => createHash("sha256").update(text).digest("hex");
 export const serialize = (copy) => JSON.stringify(copy, null, 2) + "\n";
@@ -22,18 +23,46 @@ export async function atomicWrite(filename, text) {
 }
 export function createContentStore(root) {
   const contentFile = path.join(root, "dist/content.json");
-  const htmlFile = path.join(root, "dist/index.html");
   let queue = Promise.resolve();
   async function load() {
     const raw = await readFile(contentFile, "utf8");
-    const content = JSON.parse(raw);
+    const content = withContentDefaults(JSON.parse(raw));
     const error = validateContent(content);
     if (error) throw new Error(error);
     return { content, revision: revisionOf(raw) };
   }
+  async function pageWrites(content) {
+    const images = (await loadImageConfig(root)).config;
+    const writes = [];
+    for (const [templateName, outputName] of [["template.html", "index.html"], ["about.template.html", "about.html"]]) {
+      let template;
+      try { template = await readFile(path.join(root, templateName), "utf8"); }
+      catch (error) { if (templateName === "about.template.html" && error.code === "ENOENT") continue; throw error; }
+      writes.push([path.join(root, "dist", outputName), renderTemplate(template, content, images)]);
+    }
+    return writes;
+  }
+  async function writeTogether(writes) {
+    const completed = [];
+    try {
+      for (const [filename, text] of writes) {
+        let previous;
+        try { previous = await readFile(filename); }
+        catch (error) { if (error.code !== "ENOENT") throw error; }
+        await atomicWrite(filename, text);
+        completed.push([filename, previous]);
+      }
+    } catch (error) {
+      // Restore every output if a later page or the content file cannot be written.
+      for (const [filename, previous] of completed.reverse()) {
+        if (previous === undefined) await unlink(filename);
+        else await atomicWrite(filename, previous);
+      }
+      throw error;
+    }
+  }
   async function build(content) {
-    const template = await readFile(path.join(root, "template.html"), "utf8");
-    await atomicWrite(htmlFile, renderTemplate(template, content, (await loadImageConfig(root)).config));
+    await writeTogether(await pageWrites(content));
   }
   function save(content, expectedRevision) {
     const task = queue.then(async () => {
@@ -41,13 +70,8 @@ export function createContentStore(root) {
       if (error) return { status: 422, error };
       const current = await load();
       if (current.revision !== expectedRevision) return { status: 409, error: "本地文件已被其他窗口修改。请先复制需要保留的文字，再重新加载。" };
-      const template = await readFile(path.join(root, "template.html"), "utf8");
-      const html = renderTemplate(template, content, (await loadImageConfig(root)).config);
-      const oldHtml = await readFile(htmlFile, "utf8");
       const raw = serialize(content);
-      await atomicWrite(htmlFile, html);
-      try { await atomicWrite(contentFile, raw); }
-      catch (error) { await atomicWrite(htmlFile, oldHtml); throw error; }
+      await writeTogether([...await pageWrites(content), [contentFile, raw]]);
       return { status: 200, content, revision: revisionOf(raw) };
     });
     queue = task.catch(() => {});

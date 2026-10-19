@@ -1,10 +1,12 @@
 import { CHARACTERS as CHARACTER_ASSETS, SCREENSHOTS as SCREENSHOT_ASSETS } from "./data.js";
 import { revealContent, setupIndicators, swapImage, syncIndicator } from "./motion.js";
 import { imageFor } from "./media.js";
+import { withContentDefaults } from "./content-defaults.js";
+import { applySiteContent, configuredUrl, renderCommunity, setupCommunity, setupNavigation, setupLocalPreview } from "./site.js";
 
 const [response, imageResponse] = await Promise.all(["./content.json", "./images.json"].map((file) => fetch(new URL(file, import.meta.url), { cache: "no-cache" })));
 if (!response.ok || !imageResponse.ok) throw new Error("Unable to load website content");
-let copy = await response.json(), imageConfig = await imageResponse.json();
+let copy = withContentDefaults(await response.json()), imageConfig = await imageResponse.json();
 let MODES, CHARACTERS, SCREENSHOTS;
 
 function prepareContent(content) {
@@ -222,7 +224,9 @@ function buildGallery() {
     image.loading = "lazy";
     image.width = 320;
     image.height = 180;
-    button.append(image);
+    const label = document.createElement("span");
+    label.textContent = shot.title;
+    button.append(image, label);
     button.addEventListener("click", () => showScreenshot(index, true));
     rail.append(button);
   }
@@ -245,57 +249,6 @@ function buildGallery() {
     showScreenshot(state.screenshot + (event.key === "ArrowRight" ? 1 : -1), true);
   });
   showScreenshot(state.screenshot);
-}
-
-function setupNavigation() {
-  const toggle = $("#menu-toggle");
-  const nav = $("#site-nav");
-  const mobileNav = window.matchMedia("(max-width: 760px)");
-  const syncMenu = () => { nav.inert = mobileNav.matches && !nav.classList.contains("is-open"); };
-  function closeMenu() {
-    nav.classList.remove("is-open");
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.setAttribute("aria-label", "打开导航");
-    toggle.querySelector("use").setAttribute("href", "#menu");
-    syncMenu();
-  }
-  toggle.addEventListener("click", () => {
-    const open = nav.classList.toggle("is-open");
-    toggle.setAttribute("aria-expanded", String(open));
-    toggle.setAttribute("aria-label", open ? "关闭导航" : "打开导航");
-    toggle.querySelector("use").setAttribute("href", open ? "#close" : "#menu");
-    syncMenu();
-  });
-  mobileNav.addEventListener("change", closeMenu);
-  syncMenu();
-  nav.addEventListener("click", (event) => { if (event.target.closest("a")) closeMenu(); });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
-      closeMenu();
-      toggle.focus();
-    }
-  });
-  const sections = [...document.querySelectorAll("main section[id]")];
-  const observer = new IntersectionObserver((entries) => {
-    const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-    if (!visible.length) return;
-    const active = visible[0].target.id;
-    for (const link of nav.querySelectorAll(".nav-link")) {
-      const selected = link.hash === `#${active}`;
-      link.classList.toggle("is-active", selected);
-      if (selected) link.setAttribute("aria-current", "location");
-      else link.removeAttribute("aria-current");
-    }
-  }, { rootMargin: "-15% 0px -45% 0px", threshold: [0, 0.1, 0.3, 0.6] });
-  for (const section of sections) observer.observe(section);
-}
-
-function configuredUrl(value) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return ["https:", "http:"].includes(url.protocol) ? url.href : null;
-  } catch { return null; }
 }
 
 function setupReleaseLinks() {
@@ -334,11 +287,7 @@ function applyImages() {
 
 function applyContent(content) {
   prepareContent(content);
-  for (const element of document.querySelectorAll("[data-copy]")) {
-    const text = copy[element.dataset.copy];
-    if (typeof text === "string") element.textContent = hasText(text) ? text : "";
-  }
-  for (const element of document.querySelectorAll("[data-copy-alt]")) element.alt = copy[element.dataset.copyAlt];
+  applySiteContent(copy, imageConfig);
   applyImages();
   document.title = copy["site.title"];
   $("meta[name='description']").content = copy["site.description"];
@@ -350,42 +299,17 @@ function applyContent(content) {
     optionalText(button.lastChild, role.name);
     button.setAttribute("aria-label", hasText(role.name) ? role.name : `角色 ${index + 1}`);
   });
-  SCREENSHOTS.forEach((shot, index) => $("#gallery-thumbnails").children[index].setAttribute("aria-label", hasText(shot.title) ? `查看${shot.title}实机截图` : `查看第 ${index + 1} 张实机截图`));
+  SCREENSHOTS.forEach((shot, index) => {
+    const button = $("#gallery-thumbnails").children[index];
+    button.setAttribute("aria-label", hasText(shot.title) ? `查看${shot.title}实机截图` : `查看第 ${index + 1} 张实机截图`);
+    optionalText(button.lastChild, shot.title);
+  });
   renderMode();
   renderCharacter();
   showScreenshot(state.screenshot);
   setupReleaseLinks();
+  renderCommunity(copy, imageConfig);
   syncCopyVisibility();
-}
-
-function setupLocalPreview() {
-  if (!["localhost", "127.0.0.1"].includes(location.hostname) || window.parent === window || !new URLSearchParams(location.search).has("editor-preview")) return;
-  document.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      window.parent.postMessage({ type: "copy-editor-save" }, location.origin);
-    }
-  });
-  window.addEventListener("message", (event) => {
-    if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== "copy-preview") return;
-    const { content, images, context = {}, focus = false } = event.data;
-    if (!content || Object.keys(copy).some((key) => typeof content[key] !== "string")) return;
-    if (images && typeof images === "object") imageConfig = images;
-    if (["tactical", "kingdom"].includes(context.mode)) state.mode = context.mode;
-    if (["standard", "advanced", "expert", "full"].includes(context.version)) state.version = context.version;
-    if (CHARACTER_ASSETS.some((role) => role.id === context.character)) state.character = context.character;
-    if (["tactical", "kingdom"].includes(context.skill)) state.skill = context.skill;
-    if (Number.isInteger(context.screenshot) && context.screenshot >= 0 && context.screenshot < SCREENSHOTS.length) state.screenshot = context.screenshot;
-    applyContent(content);
-    if (Number.isInteger(context.faq)) {
-      const question = document.querySelectorAll(".faq-list details")[context.faq];
-      if (question) question.open = true;
-    }
-    if (focus && context.anchor === "intro") window.scrollTo({ top: 0, behavior: "instant" });
-    else if (focus && typeof context.anchor === "string") document.getElementById(context.anchor)?.scrollIntoView({ behavior: "instant", block: "start" });
-    window.parent.postMessage({ type: "copy-preview-applied" }, location.origin);
-  });
-  window.parent.postMessage({ type: "copy-preview-ready" }, location.origin);
 }
 
 wireTabs($(".mode-tabs"), (tab) => {
@@ -416,4 +340,17 @@ buildGallery();
 setupNavigation();
 applyContent(copy);
 setupIndicators([...document.querySelectorAll('.mode-tabs, .version-tabs, .skill-tabs, #character-picker')]);
-setupLocalPreview();
+setupCommunity(() => copy);
+setupLocalPreview(() => copy, (content, images, context) => {
+  if (images && typeof images === "object") imageConfig = images;
+  if (["tactical", "kingdom"].includes(context.mode)) state.mode = context.mode;
+  if (["standard", "advanced", "expert", "full"].includes(context.version)) state.version = context.version;
+  if (CHARACTER_ASSETS.some((role) => role.id === context.character)) state.character = context.character;
+  if (["tactical", "kingdom"].includes(context.skill)) state.skill = context.skill;
+  if (Number.isInteger(context.screenshot) && context.screenshot >= 0 && context.screenshot < SCREENSHOTS.length) state.screenshot = context.screenshot;
+  applyContent(content);
+  if (Number.isInteger(context.faq)) {
+    const question = document.querySelectorAll(".faq-list details")[context.faq];
+    if (question) question.open = true;
+  }
+});

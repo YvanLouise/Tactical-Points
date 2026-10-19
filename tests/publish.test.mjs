@@ -17,7 +17,7 @@ async function fixture(t) {
   const root = path.join(folder, "site"), remote = path.join(folder, "remote.git");
   await mkdir(root);
   for (const name of ["dist", "content"]) await mkdir(path.join(root, name));
-  for (const name of ["dist/content.json", "dist/index.html", "template.html", "README.md"]) await copyFile(path.join(source, name), path.join(root, name));
+  for (const name of ["dist/content.json", "dist/index.html", "template.html", "about.template.html", "README.md"]) await copyFile(path.join(source, name), path.join(root, name));
   const run = (args, options) => git(root, args, options);
   await run(["init", "--initial-branch=main"]);
   await run(["config", "user.name", "Publish Test"]);
@@ -25,8 +25,9 @@ async function fixture(t) {
   await run(["init", "--bare", remote]);
   await run(["remote", "add", "origin", remote]);
   await writeFile(path.join(root, "editor-note.txt"), "original editor source\n");
-  await run(["add", "."]); await run(["commit", "-m", "Initial fixture"]);
   const store = createContentStore(root);
+  await store.build((await store.load()).content);
+  await run(["add", "."]); await run(["commit", "-m", "Initial fixture"]);
   const readmeStore = createReadmeStore(root);
   const imageStore = createImageStore(root);
   let now = Date.now(), workflow = null, pages = { html_url: TARGET.siteUrl, build_type: "workflow" };
@@ -70,6 +71,7 @@ test("publishes public files to the exact commit without committing unrelated st
   assert.equal((await f.run(["show", `${pending.commit}:editor-note.txt`])).stdout, "original editor source");
   assert.equal((await f.run(["diff", "--cached", "--name-only"])).stdout, "editor-note.txt");
   assert.ok((await f.run(["show", `${pending.commit}:dist/content.json`])).stdout.includes("已保存的新官网文案"));
+  assert.ok((await f.run(["show", `${pending.commit}:dist/about.html`])).stdout.includes("YvanLouise"));
   assert.ok(!JSON.stringify(pending).includes("test-token"));
   assert.ok(!(await readFile(path.join(f.root, ".cache/publish-state.json"), "utf8")).includes("test-token"));
 });

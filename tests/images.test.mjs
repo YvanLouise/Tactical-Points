@@ -15,7 +15,7 @@ const tinyWebp = Buffer.from("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3
 async function fixture(t, publisherFactory = async () => ({})) {
   const root = await mkdtemp(path.join(tmpdir(), "shudian-images-"));
   for (const folder of ["dist/assets", "content"]) await mkdir(path.join(root, folder), { recursive: true });
-  for (const file of ["dist/content.json", "dist/index.html", "content/original.json", "template.html", "README.md", "dist/assets/hero.png", "dist/assets/favicon.png"]) await copyFile(path.join(source, file), path.join(root, file));
+  for (const file of ["dist/content.json", "dist/index.html", "content/original.json", "template.html", "about.template.html", "README.md", "dist/assets/hero.png", "dist/assets/favicon.png"]) await copyFile(path.join(source, file), path.join(root, file));
   const server = await createLocalServer({ root, port: 0, publisherFactory });
   t.after(async () => { await new Promise((resolve) => server.close(resolve)); await rm(root, { recursive: true, force: true }); });
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -30,7 +30,7 @@ async function fixture(t, publisherFactory = async () => ({})) {
 
 test("image replacement persists exact bytes and updates HTML without changing originals or copy", async (t) => {
   const f = await fixture(t);
-  assert.equal(f.initial.images.length, 18);
+  assert.equal(f.initial.images.length, 20);
   const original = await readFile(path.join(f.root, "dist/assets/hero.png"));
   const copy = await readFile(path.join(f.root, "dist/content.json")), readme = await readFile(path.join(f.root, "README.md"));
   const response = await f.put(); assert.equal(response.status, 200);
@@ -49,6 +49,22 @@ test("image replacement persists exact bytes and updates HTML without changing o
   assert.ok((await readFile(path.join(f.root, "dist/index.html"), "utf8")).includes(`src="${image.src}"`));
   assert.deepEqual(await readFile(path.join(f.root, "dist/assets/hero.png")), original);
   assert.deepEqual(await readFile(path.join(f.root, "README.md")), readme);
+});
+test("author avatar and group QR uploads rebuild their public pages and can be restored", async (t) => {
+  const f = await fixture(t);
+  let revision = f.initial.revision;
+  for (const id of ["author-avatar", "community-qr"]) {
+    const response = await f.put(id, f.png, revision);
+    assert.equal(response.status, 200);
+    const saved = await response.json(); revision = saved.revision;
+    const asset = saved.images.find((item) => item.id === id);
+    assert.equal(asset.custom, true);
+    assert.ok((await readFile(path.join(f.root, "dist/index.html"), "utf8")).includes(`src="${asset.src}"`));
+    if (id === "author-avatar") assert.ok((await readFile(path.join(f.root, "dist/about.html"), "utf8")).includes(`src="${asset.src}"`));
+  }
+  const restored = await f.put("community-qr", null, revision, {}, "DELETE").then((response) => response.json());
+  assert.equal(restored.images.find((item) => item.id === "community-qr").custom, false);
+  assert.equal(restored.images.find((item) => item.id === "author-avatar").custom, true);
 });
 
 test("restoring default images resets the manifest and static preload", async (t) => {

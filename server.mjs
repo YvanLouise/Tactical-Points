@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { sections } from "./content/schema.mjs";
+import { withContentDefaults } from "./dist/content-defaults.js";
 import { createContentStore } from "./content/store.mjs";
 import { createReadmeStore } from "./content/readme-store.mjs";
 import { createImageStore } from "./content/image-store.mjs";
@@ -20,7 +21,7 @@ export async function createLocalServer({ root = projectRoot, port = Number(proc
   const readmeStore = createReadmeStore(root);
   const imageStore = createImageStore(root);
   await store.build((await store.load()).content);
-  const original = JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8"));
+  const original = withContentDefaults(JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8")));
   const token = randomBytes(32).toString("hex");
   const publisher = await publisherFactory({ root, store, readmeStore, imageStore });
   const server = createServer(async (request, response) => {

@@ -29,6 +29,8 @@ export function imageTemplateValues(config = {}) {
   return {
     "image.hero": hero.src, "image.heroWidth": String(hero.width), "image.heroHeight": String(hero.height),
     "image.faq": imageFor("faq", config).src, "image.favicon": imageFor("favicon", config).src,
+    "image.author": imageFor("author-avatar", config).src,
+    "image.community": imageFor("community-qr", config).src,
     "image.share": new URL(imageFor("screen-kingdom", config).src, "https://yvanlouise.github.io/Tactical-Points/").href,
   };
 }

@@ -13,7 +13,7 @@ const source = fileURLToPath(new URL("../", import.meta.url));
 async function fixture(t, publisherFactory) {
   const root = await mkdtemp(path.join(tmpdir(), "shudian-editor-"));
   for (const folder of ["dist", "content", "editor"]) await mkdir(path.join(root, folder));
-  for (const file of ["dist/content.json", "dist/index.html", "content/original.json", "template.html", "editor/index.html"]) await copyFile(path.join(source, file), path.join(root, file));
+  for (const file of ["dist/content.json", "dist/index.html", "content/original.json", "template.html", "about.template.html", "editor/index.html"]) await copyFile(path.join(source, file), path.join(root, file));
   const server = await createLocalServer({ root, port: 0, publisherFactory });
   t.after(async () => { await new Promise((resolve) => server.close(resolve)); await rm(root, { recursive: true, force: true }); });
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -27,11 +27,11 @@ async function fixture(t, publisherFactory) {
 test("all editable fields are covered and editor remains outside public dist", async (t) => {
   const { root, server, origin, state } = await fixture(t);
   assert.equal(server.address().address, "127.0.0.1");
-  assert.equal(fields.length, 169);
+  assert.equal(fields.length, 207);
   assert.equal(new Set(fields.map((field) => field.key)).size, fields.length);
   assert.equal(validateContent(state.content), null);
   assert.equal(validateContent(state.original), null);
-  assert.equal(state.sections.length, 7);
+  assert.equal(state.sections.length, 9);
   assert.equal((await fetch(`${origin}/editor/`)).status, 200);
   assert.equal((await fetch(`${origin}/server.mjs`)).status, 404);
   assert.equal((await fetch(`${origin}/content/original.json`)).status, 404);
@@ -51,6 +51,37 @@ test("save persists text and regenerates escaped static HTML and metadata", asyn
   assert.ok(!html.includes('<img src=x onerror="alert(1)">'));
   assert.ok(!/\{\{[\w.]+\}\}/.test(html));
   assert.equal(JSON.parse(await readFile(path.join(root, "content/original.json"), "utf8"))["hero.headingStart"], state.content["hero.headingStart"]);
+});
+test("legacy copy gains editable author and community defaults without rewriting saved drafts", async (t) => {
+  const { root, origin, state } = await fixture(t);
+  const raw = JSON.parse(await readFile(path.join(root, "dist/content.json"), "utf8"));
+  assert.equal(raw["author.name"], undefined);
+  assert.equal(state.content["author.name"], "YvanLouise");
+  assert.equal(state.content["community.groupNumber"], "");
+  assert.equal(state.content["site.shareTitle"], raw["site.shareTitle"]);
+  assert.equal(state.sections.find((section) => section.id === "author").page, "about");
+  assert.equal((await fetch(`${origin}/about.html`)).status, 200);
+  assert.equal((await fetch(`${origin}/about.template.html`)).status, 404);
+});
+test("author and group edits regenerate both pages and escape author metadata", async (t) => {
+  const { root, state, put } = await fixture(t);
+  const next = { ...state.content, "author.heading": '<script>alert("author")</script>', "author.pageTitle": '作者 & "介绍"', "community.groupNumber": "123456789", "release.communityUrl": "https://example.com/group" };
+  assert.equal((await put(next)).status, 200);
+  const home = await readFile(path.join(root, "dist/index.html"), "utf8"), about = await readFile(path.join(root, "dist/about.html"), "utf8");
+  assert.ok(home.includes("123456789"));
+  assert.ok(about.includes("&lt;script&gt;alert(&quot;author&quot;)&lt;/script&gt;"));
+  assert.ok(about.includes("<title>作者 &amp; &quot;介绍&quot;</title>"));
+  assert.ok(!/\{\{[\w.]+\}\}/.test(home + about));
+  assert.notEqual(validateContent({ ...next, "author.profileUrl": "javascript:alert(1)" }), null);
+});
+test("a failed author-page write rolls back the home page and leaves copy unchanged", async (t) => {
+  const { root, state } = await fixture(t);
+  const before = await readFile(path.join(root, "dist/index.html")), content = await readFile(path.join(root, "dist/content.json"));
+  await rm(path.join(root, "dist/about.html"));
+  await mkdir(path.join(root, "dist/about.html"));
+  await assert.rejects(createContentStore(root).save({ ...state.content, "hero.note": "must roll back" }, state.revision));
+  assert.deepEqual(await readFile(path.join(root, "dist/index.html")), before);
+  assert.deepEqual(await readFile(path.join(root, "dist/content.json")), content);
 });
 test("invalid fields and unsafe links cannot change files", async (t) => {
   const { root, state, put } = await fixture(t);
