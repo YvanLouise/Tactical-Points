@@ -91,11 +91,18 @@ test('Android publication keeps edited download prose and author links while ref
 
 test('source snapshot uses the current original project, preserves startup and leaves source and old Android copy untouched', async t => {
   const f = await fixture(t);
-  for (const folder of ['scripts/ui', 'scenes/ui', 'assets']) await mkdir(path.join(f.game, folder), { recursive: true });
+  for (const folder of ['scripts/ui', 'scenes/ui', 'assets/icons']) await mkdir(path.join(f.game, folder), { recursive: true });
   await writeFile(path.join(f.game, 'scripts/ui/main_menu.gd'), 'extends Control\nfunc test():\n\tif DisplayServer.get_name() != "headless":\n\t\tpass\n');
   await writeFile(path.join(f.game, 'scripts/ui/menu_settings_view.gd'), 'extends Control\nfunc set_values(settings):\n\t_set_toggle("FullscreenToggle", bool(settings.get("fullscreen", false)))\n');
   await writeFile(path.join(f.game, 'scenes/ui/MainMenu.tscn'), 'latest source scene');
   await writeFile(path.join(f.game, 'assets/latest.txt'), 'current original asset');
+  const launcherIcons = {
+    main_192x192: 'android-main.png',
+    adaptive_foreground_432x432: 'android-foreground.png',
+    adaptive_background_432x432: 'android-background.png',
+    adaptive_monochrome_432x432: 'android-monochrome.png',
+  };
+  for (const filename of Object.values(launcherIcons)) await writeFile(path.join(f.game, 'assets/icons', filename), `fixture ${filename}`);
   await mkdir(path.join(f.game, 'android_test/project'), { recursive: true });
   await writeFile(path.join(f.game, 'android_test/project/stale.txt'), 'old copy');
   const original = await readFile(path.join(f.game, 'project.godot'));
@@ -106,6 +113,11 @@ test('source snapshot uses the current original project, preserves startup and l
   assert.match(config, /window\/stretch\/aspect="expand"/);
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /screen\/edge_to_edge=true/);
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /version\/code=2000/);
+  const preset = await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8');
+  for (const [setting, filename] of Object.entries(launcherIcons)) {
+    assert.ok(preset.includes(`launcher_icons/${setting}="res://assets/icons/${filename}"`));
+    assert.equal(await readFile(path.join(result.project, 'assets/icons', filename), 'utf8'), `fixture ${filename}`);
+  }
   assert.match(await readFile(path.join(result.project, 'scripts/ui/main_menu.gd'), 'utf8'), /not OS.has_feature\("android"\)/);
   assert.equal(await readFile(path.join(result.project, 'assets/latest.txt'), 'utf8'), 'current original asset');
   assert.deepEqual(await readFile(path.join(f.game, 'project.godot')), original);
