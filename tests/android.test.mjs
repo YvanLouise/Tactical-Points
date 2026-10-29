@@ -91,11 +91,13 @@ test('Android publication keeps edited download prose and author links while ref
 
 test('source snapshot uses the current original project, preserves startup and leaves source and old Android copy untouched', async t => {
   const f = await fixture(t);
-  for (const folder of ['scripts/ui', 'scenes/ui', 'assets/icons']) await mkdir(path.join(f.game, folder), { recursive: true });
+  for (const folder of ['scripts/ui', 'scenes/ui', 'assets/icons', 'sounds/core']) await mkdir(path.join(f.game, folder), { recursive: true });
   await writeFile(path.join(f.game, 'scripts/ui/main_menu.gd'), 'extends Control\nfunc test():\n\tif DisplayServer.get_name() != "headless":\n\t\tpass\n');
   await writeFile(path.join(f.game, 'scripts/ui/menu_settings_view.gd'), 'extends Control\nfunc set_values(settings):\n\t_set_toggle("FullscreenToggle", bool(settings.get("fullscreen", false)))\n');
   await writeFile(path.join(f.game, 'scenes/ui/MainMenu.tscn'), 'latest source scene');
   await writeFile(path.join(f.game, 'assets/latest.txt'), 'current original asset');
+  await writeFile(path.join(f.game, 'sounds/core/select.wav'), 'current sound asset');
+  await writeFile(path.join(f.game, 'sounds/core/select.wav.import'), 'current sound import settings');
   const launcherIcons = {
     main_192x192: 'android-main.png',
     adaptive_foreground_432x432: 'android-foreground.png',
@@ -120,6 +122,8 @@ test('source snapshot uses the current original project, preserves startup and l
   }
   assert.match(await readFile(path.join(result.project, 'scripts/ui/main_menu.gd'), 'utf8'), /not OS.has_feature\("android"\)/);
   assert.equal(await readFile(path.join(result.project, 'assets/latest.txt'), 'utf8'), 'current original asset');
+  assert.equal(await readFile(path.join(result.project, 'sounds/core/select.wav'), 'utf8'), 'current sound asset');
+  assert.equal(await readFile(path.join(result.project, 'sounds/core/select.wav.import'), 'utf8'), 'current sound import settings');
   assert.deepEqual(await readFile(path.join(f.game, 'project.godot')), original);
   assert.equal(await readFile(path.join(f.game, 'android_test/project/stale.txt'), 'utf8'), 'old copy');
   await assert.rejects(prepareAndroidSnapshot(f.game, path.join(f.game, 'outside'), nextAndroidVersion(['0.01'])), /构建目录/);

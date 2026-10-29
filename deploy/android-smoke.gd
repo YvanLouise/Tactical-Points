@@ -1,6 +1,7 @@
 extends SceneTree
 
 const LAYOUT := preload("res://scripts/ui/screen_layout.gd")
+const SOUND_LIBRARY := preload("res://scripts/audio/sound_library.gd")
 var _failures := 0
 
 
@@ -25,6 +26,9 @@ func _run() -> void:
 	_check(Input.emulate_mouse_from_touch, "Touch input is enabled")
 	_check(not quit_on_go_back, "Back does not quit automatically")
 	_check(ResourceLoader.exists(str(ProjectSettings.get_setting("application/run/main_scene"))), "Latest startup scene is included")
+	for id in SOUND_LIBRARY.DEFINITIONS:
+		var stream := load(SOUND_LIBRARY.asset_path(id)) as AudioStream
+		_check(stream != null and stream.get_length() > 0.0, "Packaged sound loads: " + id)
 	var runtime := root.get_node("AndroidRuntime")
 	_check(is_instance_valid(runtime), "Android runtime is included")
 	change_scene_to_file("res://scenes/ui/MainMenu.tscn")
@@ -63,6 +67,7 @@ func _run() -> void:
 	_check(current_scene.name == "KingdomBattle" and current_scene.get("model") != null, "Latest Kingdom starts")
 	await _back(runtime)
 	_check(current_scene.get("_modal").visible, "Back opens Kingdom settings")
+	await root.get_node("MusicManager").shutdown()
 	current_scene.free()
 	root.get_node("MusicManager").free()
 	await create_timer(0.2).timeout

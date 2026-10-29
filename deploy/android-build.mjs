@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { PublishError } from './github.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const resourceFolders = ['assets', 'data', 'music', 'scenes', 'scripts', 'shaders', 'tools'];
+const resourceFolders = ['assets', 'data', 'music', 'sounds', 'scenes', 'scripts', 'shaders', 'tools'];
 const exists = file => stat(file).then(() => true, () => false);
 const inside = (root, file) => { const relative = path.relative(root, file); return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative); };
 
