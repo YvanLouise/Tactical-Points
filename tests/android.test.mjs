@@ -87,6 +87,8 @@ test('Android publication keeps edited download prose and author links while ref
   const next = androidDownloadCopy(updated, { version: '0.04-android-test', bytes: 160000001 }, 'https://example.com/android-test-v0.04.apk');
   assert.equal(next['release.message'], content['release.message'].replaceAll('0.02', '0.04').replace('152 MB', '161 MB'));
   assert.equal(content['release.message'].includes('0.02'), true);
+  const retired = androidDownloadCopy({ ...content, 'release.message': content['release.message'] + '旧版安装包可在 GitHub 发布记录中找到。' }, { version: '0.03-android-test', bytes: 151257729 }, 'https://example.com/android-test-v0.03.apk');
+  assert.equal(retired['release.message'], updated['release.message'] + '更新内容可在 GitHub 发布记录中查看。');
 });
 
 test('source snapshot uses the current original project, preserves startup and leaves source and old Android copy untouched', async t => {
