@@ -139,6 +139,9 @@ try {
         & (Join-Path $buildTools.FullName 'aapt.exe') dump xmltree $apkFileName 'AndroidManifest.xml' *> (Join-Path $verificationRoot 'apk-manifest-tree.txt')
         if ($LASTEXITCODE -ne 0) { throw 'APK manifest tree inspection failed.' }
         $manifestTree = Get-Content -LiteralPath (Join-Path $verificationRoot 'apk-manifest-tree.txt') -Raw
+        if ($manifestTree -notmatch 'android\.permission\.INTERNET') {
+            throw 'APK Internet permission is required for LAN multiplayer.'
+        }
         if ($manifestTree -notmatch 'com\.godot\.game\.GodotAppLauncher' -or $manifestTree -notmatch 'android\.intent\.category\.LAUNCHER') {
             throw 'APK launcher activity is missing.'
         }

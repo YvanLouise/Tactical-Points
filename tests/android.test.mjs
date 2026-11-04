@@ -116,6 +116,7 @@ test('source snapshot uses the current original project, preserves startup and l
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /screen\/edge_to_edge=true/);
   assert.match(await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8'), /version\/code=2000/);
   const preset = await readFile(path.join(result.project, 'export_presets.cfg'), 'utf8');
+  assert.match(preset, /permissions\/internet=true/);
   for (const [setting, filename] of Object.entries(launcherIcons)) {
     assert.ok(preset.includes(`launcher_icons/${setting}="res://assets/icons/${filename}"`));
     assert.equal(await readFile(path.join(result.project, 'assets/icons', filename), 'utf8'), `fixture ${filename}`);

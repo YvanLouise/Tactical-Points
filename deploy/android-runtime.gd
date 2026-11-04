@@ -27,8 +27,8 @@ func handle_back() -> void:
 		if scene.get("_page") == "home" and not scene.get_node("ModalLayer").visible:
 			scene.call("_show_exit_confirmation")
 			return
-	# Paused tutorials and developer dialogs own their input independently.
-	if not is_instance_valid(scene.get("_tutorial_layer")) and not is_instance_valid(scene.get("_developer_dialog")) and scene.has_method("_unhandled_key_input"):
+	# Overlays handle Back before the scene's fallback navigation.
+	if not is_instance_valid(scene.get("_tutorial_layer")) and not is_instance_valid(scene.get("_developer_dialog")) and not is_instance_valid(scene.get("_third_party_view")) and scene.has_method("_unhandled_key_input"):
 		scene.call("_unhandled_key_input", event)
 		return
 	Input.parse_input_event(event)
