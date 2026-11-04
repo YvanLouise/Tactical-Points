@@ -200,7 +200,7 @@
   "faq.kingdom.answer": "术点和王国的进度分开记录。\n普通版首次获胜：解锁进阶版，获得 4 种未收藏特种卡。\n进阶版击败白呜：解锁高阶版，获得 4 张角色卡。\n结算时会列出本局解锁的内容。成就页可查进度，图鉴可查卡牌和获取条件。王国完整版的事件系统暂未开放。",
   "faq.download.readyAnswer": "安卓测试版 0.07 已开放下载，安装包约 162 MB。需要 Android 7.0 或以上，并支持 OpenGL ES 3.0。下载 APK 后直接安装；如果系统拦截，请按提示允许安装。已安装旧测试版的玩家可以覆盖升级。",
   "release.heading": "下载与更新",
-  "release.message": "当前版本为 Android 测试版 0.07，安装包约 162 MB，支持 Android 7.0 及以上。\n游戏还在开发，遇到问题可以到 QQ 群反馈。旧版安装包可在 GitHub 发布记录中找到。",
+  "release.message": "当前版本为 Android 测试版 0.07，安装包约 162 MB，支持 Android 7.0 及以上。\n游戏还在开发，遇到问题可以到 QQ 群反馈。更新内容可在 GitHub 发布记录中查看。",
   "release.status": "开发中",
   "release.readyStatus": "Android 测试版 0.07",
   "release.downloadLabel": "下载安卓测试版",
